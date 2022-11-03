@@ -70,14 +70,16 @@ classes = ('plane', 'car', 'bird', 'cat',
 # settings
 Coarse_Epoch = 100
 
-
 net = resnet.resnet20()
 if torch.cuda.is_available():
     net.cuda()
     print(torch.cuda.get_device_name(0))
 criterion = nn.CrossEntropyLoss()
 # cosine scheduler for lr
-optimizer = optim.SGD(net.parameters(),lr = .1,momentum=.9,weight_decay=.00005)
+optimizer = optim.SGD(net.parameters(),
+                        lr = .1,
+                        momentum=.9,
+                        weight_decay=.00005)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, 10)
 print(optimizer)
 #scheduler.step()

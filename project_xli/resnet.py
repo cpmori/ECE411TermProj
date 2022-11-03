@@ -48,11 +48,9 @@ class AlphaTerm():
                 #print(m.weight.size())
                 in_planes = m.weight.size()[1]
                 if in_planes != 3:    
-                    # generate alpha
+                    # generate alpha (constant for coarse train)
                     #alpha = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-                    alpha = torch.empty(in_planes)
-                    init.kaiming_normal_(alpha)
-                    #alpha = torch.from_numpy(np.ones(in_planes))
+                    alpha = torch.from_numpy(np.ones(in_planes))
                     alpha = F.softmax(alpha, dim = 0)
                     #print(alpha)
                     AlphaTerm.a.append(alpha)
@@ -144,12 +142,12 @@ class TargetResNet(nn.Module):
         self.apply(alpha_apply._weights_init)
         self.alpha = alpha_apply.a
         self.weights = alpha_apply.weights
-        print(alpha_apply.a[1].size())
-        print(alpha_apply.weights[1].size())
+        #print(alpha_apply.a[1].size())
+        #print(alpha_apply.weights[1].size())
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
-        print(strides)
+        #print(strides)
         layers = []
         for stride in strides:
             layers.append(block(self.in_planes, planes, stride))

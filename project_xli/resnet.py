@@ -56,7 +56,7 @@ class AlphaTerm():
                     AlphaTerm.a.append(alpha)
                     weights_copy = m.weight.clone().detach()
                     AlphaTerm.weights.append(weights_copy)
-                    # each conv filter
+                    # apply alpha to each input conv filter
                     for i in range(in_planes):
                         weights_copy[i] *= alpha[i]
                     #print(weights_copy.is_leaf)
@@ -81,7 +81,7 @@ class LambdaLayer(nn.Module):
 class TargetBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='A'):
+    def __init__(self, in_planes, planes, stride=1, option='B'):
         super(TargetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)

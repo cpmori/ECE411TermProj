@@ -29,7 +29,7 @@ transform = transforms.Compose(
 
 batch_size = 128
 
-dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
+dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
 train_size = int(.8 * len(dataset))
 valid_size = len(dataset) - train_size
@@ -38,7 +38,7 @@ trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_si
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
 validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
-testset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=False,
+testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=2)
@@ -80,7 +80,7 @@ optimizer = optim.SGD(net.parameters(),
                         lr = .1,
                         momentum=.9,
                         weight_decay=.00005)
-scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, 10)
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Coarse_Epoch)
 print(optimizer)
 #scheduler.step()
 #print(optimizer)
@@ -91,7 +91,11 @@ print(coarse_loss_regu)
 best_model = resnet.resnet20()
 best_val = 0
 best_epoch = 0
+iteration = []
+train_acc = []
+valid_acc = []
 for epoch in range(Coarse_Epoch):
+    iteration.append(epoch)
     running_loss = 0
     print(epoch)
     train_total = 0
@@ -115,6 +119,8 @@ for epoch in range(Coarse_Epoch):
         if i%100 == 0:
             print(i,loss.data)
     print("training: ", train_total, train_correct, train_correct/train_total)
+    train_acc.append(train_correct/train_total)
+    # validation
     valid_total = 0
     valid_correct = 0
     for i, data in enumerate(validloader,0):
@@ -125,8 +131,9 @@ for epoch in range(Coarse_Epoch):
         outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         valid_total += labels.size(0)
-        valid_correct += (predicted == labels).sum()
-    print("validation: ", valid_correct/valid_total)
+        valid_correct += (predicted == labels.flatten()).sum().item()
+    print("validation: ", valid_total, valid_correct, valid_correct/valid_total)
+    valid_acc.append(valid_correct/valid_total)
     print(best_val)
     print(valid_correct/valid_total > best_val)
     if valid_correct/valid_total > best_val:
@@ -141,6 +148,11 @@ correct = 0
 total = 0
 best_correct = 0
 best_total = 0
+correct_predictions = {}
+all_predictions = {}
+for cls in classes:
+    correct_predictions[cls] = 0
+    all_predictions[cls] = 0
 for i, data in enumerate(testloader, 0):
     inputs, labels = data
     if torch.cuda.is_available():
@@ -151,10 +163,21 @@ for i, data in enumerate(testloader, 0):
     _, predicted = torch.max(outputs.data, 1)
     _, best_predicted = torch.max(best_outputs.data, 1)
     total += labels.size(0)
-    correct += (predicted == labels).sum()
+    correct += (predicted == labels).sum().item()
     best_total += labels.size(0)
-    best_correct += (best_predicted == labels).sum()
-print(total, correct, correct/total)
-print(best_total, best_correct, best_correct/best_total)
-
+    best_correct += (best_predicted == labels.flatten()).sum().item()
+    for i, cls in enumerate(labels.flatten()):
+        all_predictions[classes[cls]] += 1
+        if best_predicted[i] == cls:
+            correct_predictions[classes[cls]] += 1
+print("latest: ", total, correct, correct/total)
+print("best validation: ", best_total, best_correct, best_correct/best_total)
+plt.figure()
+plt.plot(iteration, train_acc)
+plt.plot(iteration, valid_acc)
+plt.figure()
+print(all_predictions)
+print(correct_predictions)
+plt.bar(list(correct_predictions.keys()), correct_predictions.values())
+plt.show()
     

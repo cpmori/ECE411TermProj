@@ -31,6 +31,7 @@ from torch.autograd import Variable
 
 import numpy as np
 
+apply_alpha = True
 #__all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet164','resnet1202']
 __all__ = ['resnet20']
 class AlphaTerm():
@@ -44,7 +45,7 @@ class AlphaTerm():
         if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight)
             # apply alpha to conv filters
-            if isinstance(m, nn.Conv2d):
+            if isinstance(m, nn.Conv2d) and apply_alpha:
                 #print(m.weight.size())
                 in_planes = m.weight.size()[1]
                 if in_planes != 3:    
@@ -101,22 +102,6 @@ class TargetBlock(nn.Module):
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
                      nn.BatchNorm2d(self.expansion * planes)
                 )
-                #self.sc_weights = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-                #self.sc_weights = F.softmax(self.sc_weights, dim = 0)
-                #print('shortcut_a: ',self.sc_weights.size())
-                #for i in range(in_planes):
-                #    self.shortcut.weight[i] *= self.sc_weights[i]
-        #self.layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-        #self.layer_weights1 = F.softmax(self.layer_weights1, dim = 0)
-        #print('layer1_a: ',self.layer_weights1.size())
-        #self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
-        #self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
-        #print('layer2_a: ',self.layer_weights2.size())
-        #for i in range(in_planes):
-        #    self.conv1.weight[i] *= self.layer_weights1[i]
-        #for i in range(planes):
-        #    self.conv2.weight[i] *= self.layer_weights2[i]
-        #print(self.conv1)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

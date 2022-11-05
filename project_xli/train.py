@@ -10,7 +10,7 @@ import torch.optim as optim
 import resnet
 import matplotlib.pyplot as plt
 import numpy as np
-
+import copy
 def alphaL2(alphas):
     l2norm = 0
     for alpha in alphas:
@@ -46,49 +46,27 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-
-
-# functions to show an image
-
-
-#def imshow(img):
-#    img = img / 2 + 0.5     # unnormalize
-#    npimg = img.numpy()
-#    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    #plt.show()
-
-
-# get some random training images
-#dataiter = iter(trainloader)
-#images, labels = next(dataiter)
-
-# show images
-#imshow(torchvision.utils.make_grid(images))
-# print labels
-#print(' '.join(f'{classes[labels[j]]:5s}' for j in range(batch_size)))
-
 # settings
 Coarse_Epoch = 100
 
-net = resnet.resnet20()
+net = resnet.resnet56()
 if torch.cuda.is_available():
     net.cuda()
     print(torch.cuda.get_device_name(0))
+
 criterion = nn.CrossEntropyLoss()
-# cosine scheduler for lr
 optimizer = optim.SGD(net.parameters(),
                         lr = .1,
                         momentum=.9,
-                        weight_decay=.00005)
+                        weight_decay=.0005)
+# cosine scheduler for lr
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Coarse_Epoch)
 print(optimizer)
-#scheduler.step()
-#print(optimizer)
 
 coarse_loss_regu = .1 * alphaL2(net.alpha)
 print(coarse_loss_regu)
 # train & valid
-best_model = resnet.resnet20()
+best_model = resnet.resnet56()
 best_val = 0
 best_epoch = 0
 iteration = []
@@ -105,10 +83,10 @@ for epoch in range(Coarse_Epoch):
         if torch.cuda.is_available():
             inputs = inputs.cuda()
             labels = labels.cuda()
+        
         optimizer.zero_grad()
         outputs = net(inputs)
         loss = criterion(outputs, labels) + coarse_loss_regu
-        #print(.1* alphaL2(net.alpha))
         loss.backward()
         optimizer.step()
         #print(optimizer)
@@ -120,6 +98,7 @@ for epoch in range(Coarse_Epoch):
             print(i,loss.data)
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
+
     # validation
     valid_total = 0
     valid_correct = 0
@@ -134,13 +113,12 @@ for epoch in range(Coarse_Epoch):
         valid_correct += (predicted == labels.flatten()).sum().item()
     print("validation: ", valid_total, valid_correct, valid_correct/valid_total)
     valid_acc.append(valid_correct/valid_total)
-    print(best_val)
-    print(valid_correct/valid_total > best_val)
     if valid_correct/valid_total > best_val:
         best_val = valid_correct/valid_total
         best_epoch = epoch
-        best_model = net
+        best_model = copy.deepcopy(net)
     print("best model (epoch, accuracy): ", best_epoch, best_val)
+
     scheduler.step()
     print(scheduler.get_last_lr())
 

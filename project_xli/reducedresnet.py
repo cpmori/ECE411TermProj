@@ -72,11 +72,11 @@ class LambdaLayer(nn.Module):
 class ReducedBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes,inter_planes, planes, stride=1, option='A'):
+    def __init__(self, in_planes, inter_planes, planes, alphas, weights,stride=1, option='A'):
         super(ReducedBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_planes, inter_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(inter_planes)
+        self.conv2 = nn.Conv2d(inter_planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
         self.shortcut = nn.Sequential()
@@ -86,7 +86,7 @@ class ReducedBlock(nn.Module):
                 For CIFAR10 ResNet paper uses option A.
                 """
                 self.shortcut = LambdaLayer(lambda x:
-                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
+                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, (planes-in_planes)//2, (planes-in_planes)//2), "constant", 0))
             elif option == 'B':
                 self.shortcut = nn.Sequential(
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
@@ -97,17 +97,23 @@ class ReducedBlock(nn.Module):
                 print('shortcut_a: ',self.sc_weights.size())
                 for i in range(in_planes):
                     self.shortcut.weight[i] *= self.sc_weights[i]
-        self.layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-        self.layer_weights1 = F.softmax(self.layer_weights1, dim = 0)
-        print('layer1_a: ',self.layer_weights1.size())
-        self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
-        self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
-        print('layer2_a: ',self.layer_weights2.size())
-        #for i in range(in_planes):
-        #    self.conv1.weight[i] *= self.layer_weights1[i]
+        alpha_1 = alphas[0]
+        alpha_2 = alphas[1]
+        weight_1 = weights[0]
+        weight_2 = weights[1]
+        #print('layer1_a: ',self.layer_weights1.size())
+        #self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
+        #self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
+        #print('layer2_a: ',self.layer_weights2.size())
+        for i in range(in_planes):
+            weight_1[i] *= alpha_1[i]
+        self.conv1.weight = nn.Parameter(weight_1.requires_grad_(True))
+        for i in range(inter_planes):
+            weight_2[i] *= alpha_2[i]
+        self.conv2.weight = nn.Parameter(weight_2.requires_grad_(True))
         #for i in range(planes):
         #    self.conv2.weight[i] *= self.layer_weights2[i]
-        print(self.conv1)
+        #print(self.conv1)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -118,31 +124,52 @@ class ReducedBlock(nn.Module):
 
 
 class TargetResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, pruned_alpha, pruned_weights, num_classes=10):
         super(TargetResNet, self).__init__()
-        self.in_planes = 16
         
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
+        # filters and their weights for the input layer 
+        input2first_layer_a = pruned_alpha[0]
+        input2first_layer_w = pruned_weights[0]
+        first_layer_a = pruned_alpha[0:num_blocks[0]*2]
+        second_layer_a = pruned_alpha[2*num_blocks[0]: 2*(sum(num_blocks[:2]))]
+        third_layer_a = pruned_alpha[2*(sum(num_blocks[:2])): 2*(sum(num_blocks))]
+        
+        first_layer_w = pruned_weights[0:num_blocks[0]*2]
+        second_layer_w = pruned_weights[2*num_blocks[0]: 2*(sum(num_blocks[:2]))]
+        third_layer_w = pruned_weights[2*(sum(num_blocks[:2])): 2*(sum(num_blocks))]
+        
+        
+        self.conv1 = nn.Conv2d(3, input2first_layer_a.size()[0], kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(input2first_layer_a.size()[0])
+        self.layer1 = self._make_layer(block, first_layer_a, first_layer_w, second_layer_a[0].size()[0], 1)
+        self.layer2 = self._make_layer(block, second_layer_a, second_layer_w, third_layer_a[0].size()[0], 2)
+        self.layer3 = self._make_layer(block, third_layer_a, third_layer_w, 64, 2)
         self.linear = nn.Linear(64, num_classes)
-        alpha_apply = AlphaTerm()
+        #alpha_apply = AlphaTerm()
 
-        self.apply(alpha_apply._weights_init)
-        self.alpha = alpha_apply.a
-        self.weights = alpha_apply.weights
-        print(alpha_apply.a[1].size())
-        print(alpha_apply.weights[1].size())
+        #self.apply(alpha_apply._weights_init)
+        #self.alpha = alpha_apply.a
+        #self.weights = alpha_apply.weights
+        #print(alpha_apply.a[1].size())
+        #print(alpha_apply.weights[1].size())
 
-    def _make_layer(self, block, planes, num_blocks, stride):
+    def _make_layer(self, block, alphas, weights, output_layers, stride = 1):
+        num_blocks = len(alphas)//2
+
         strides = [stride] + [1]*(num_blocks-1)
         print(strides)
         layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
+        for i in range(num_blocks):            
+            in_planes = alphas[2*i].size()[0]
+            inter_planes = alphas[2*i+1].size()[0]
+            if 2*i+2 < len(alphas):
+                out_planes = alphas[2*i+2].size()[0]
+            else:
+                out_planes = output_layers
+            print(in_planes, inter_planes, out_planes)
+            block_weights = weights[2*i:2*i+2]
+            block_alpha = alphas[2*i:2*i+2]
+            layers.append(block(in_planes, inter_planes, out_planes, block_alpha, block_weights, strides[i]))
 
         return nn.Sequential(*layers)
 
@@ -172,8 +199,8 @@ def resnet44():
     return TargetResNet(ReducedBlock, [7, 7, 7])
 
 #
-def resnet56():
-    return TargetResNet(ReducedBlock, [9, 9, 9])
+def resnet56(alpha, filter):
+    return TargetResNet(ReducedBlock, [9, 9, 9], alpha, filter)
 
 #
 def resnet110():

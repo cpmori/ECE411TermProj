@@ -47,25 +47,27 @@ class AlphaTerm():
             # apply alpha to conv filters
             if isinstance(m, nn.Conv2d) and apply_alpha:
                 #print(m.weight.size())
-                in_planes = m.weight.size()[1]
-                if in_planes != 3:    
-                    # generate alpha (constant for coarse train)
-                    #alpha = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-                    alpha = torch.from_numpy(np.ones(in_planes))
-                    alpha = F.softmax(alpha, dim = 0)
-                    #print(alpha)
-                    AlphaTerm.a.append(alpha)
-                    weights_copy = m.weight.clone().detach()
-                    AlphaTerm.weights.append(weights_copy)
-                    # apply alpha to each input conv filter
-                    for i in range(in_planes):
-                        weights_copy[i] *= alpha[i]
-                    #print(weights_copy.is_leaf)
-                    #print(weights_copy.requires_grad_(True).is_leaf)
-                    #print(weights_copy[0][0][0][0],m.weight[0][0][0][0],alpha[0])
-                    m.weight = nn.Parameter(weights_copy.requires_grad_(True))
-                    #a.append(alpha)
-    
+                num_filters = m.weight.size()[0]
+                #print(num_filters)
+                #print(in_planes)
+                #if in_planes != 3:    
+                # generate alpha (constant for coarse train)
+                #alpha = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
+                alpha = torch.from_numpy(np.ones(num_filters))
+                alpha = F.softmax(alpha, dim = 0)
+                #print(alpha)
+                AlphaTerm.a.append(alpha)
+                weights_copy = m.weight.clone().detach()
+                AlphaTerm.weights.append(weights_copy)
+                # apply alpha to each input conv filter
+                for i in range(num_filters):
+                    weights_copy[i] *= alpha[i]
+                #print(weights_copy.is_leaf)
+                #print(weights_copy.requires_grad_(True).is_leaf)
+                #print(weights_copy[0][0][0][0],m.weight[0][0][0][0],alpha[0])
+                m.weight = nn.Parameter(weights_copy.requires_grad_(True))
+                #a.append(alpha)
+
     @staticmethod
     def findWeight(model):
         AlphaTerm.weights = []
@@ -82,7 +84,7 @@ class LambdaLayer(nn.Module):
 class TargetBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='B'):
+    def __init__(self, in_planes, planes, stride=1, option='A'):
         super(TargetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -132,7 +134,7 @@ class TargetResNet(nn.Module):
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
-        #print(strides)
+        print(strides)
         layers = []
         for stride in strides:
             layers.append(block(self.in_planes, planes, stride))
@@ -149,9 +151,6 @@ class TargetResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
-    
-    def set_layer_weights(self, l1, l2, l3):
-        return
 
 #
 def resnet20():
@@ -194,27 +193,39 @@ def test(net):
 
 if __name__ == "__main__":
 
-    layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=16))
-    layer_weights1 = F.softmax(layer_weights1, dim = 0)
-    print('layer1_a: ',layer_weights1.size())
-    
-    for net_name in __all__:
-        if net_name.startswith('resnet'):
-            current_net = globals()[net_name]()
-            print(net_name)
-            test(current_net)
-            for name, param in current_net.named_parameters():
-                print(name,'\t', param.size())
-                #for i, filter in enumerate(param):
-                #    a = layer_weights1[i]
-                #    aW = a * filter
-                #    W = aW / filter
-                    #print(a)
-                #print(current_net.get_parameter(name))
-            for layer, module in current_net.named_children():
-                for layer_2, module_2 in module.named_children():
-                    print(layer_2,':::\n', list(module_2.named_children()))
-                print(layer,'::\n', len(list(module.named_children())))
-            print()
-    
+    net = resnet20()
+    all_alpha = net.alpha
+    all_filters = []
+    for name, param in net.named_parameters():
+        if 'conv' in name:
+            print(name, param.size())
+            all_filters.append(param)
+    for layer_alpha in all_alpha:
+        print(layer_alpha.size())
+        #for filter_alpha in layer_alpha:
+        #    print(filter_alpha)
+
+    print(len(all_alpha), len(all_filters))
+
+
+    #for net_name in __all__:
+    #    if net_name.startswith('resnet'):
+    #        current_net = globals()[net_name]()
+    #        print(net_name)
+    #        test(current_net)
+    #        
+    #        #for name, param in current_net.named_parameters():
+    #        #    print(name,'\t', param.size())
+    #        #    #for i, filter in enumerate(param):
+    #        #    #    a = layer_weights1[i]
+    #        #    #    aW = a * filter
+    #        #    #    W = aW / filter
+    #        #        #print(a)
+    #        #    #print(current_net.get_parameter(name))
+    #        #for layer, module in current_net.named_children():
+    #        #    for layer_2, module_2 in module.named_children():
+    #        #        print(layer_2,':::\n', list(module_2.named_children()))
+    #        #    print(layer,'::\n', len(list(module.named_children())))
+    #        print()
+    #
     

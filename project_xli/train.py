@@ -8,6 +8,8 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 
 import resnet
+import reducedresnet
+
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
@@ -22,6 +24,13 @@ def alphaL2(alphas):
     l2norm = np.sqrt(l2norm)
     #print(l2norm)
     return l2norm
+def unweightedFilter(param, alphas):
+    new_param = torch.empty(param.size())
+    print(alphas.size(), param.size())
+    for i, filter in enumerate(param):
+        alpha = alphas[i]
+        new_param[i] = filter/alpha
+    return new_param
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -29,7 +38,7 @@ transform = transforms.Compose(
 
 batch_size = 128
 
-dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
+dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
 train_size = int(.8 * len(dataset))
 valid_size = len(dataset) - train_size
@@ -38,7 +47,7 @@ trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_si
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
 validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
-testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
+testset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=2)
@@ -72,7 +81,24 @@ best_epoch = 0
 iteration = []
 train_acc = []
 valid_acc = []
+
 for epoch in range(Coarse_Epoch):
+        # generate reduced resnet
+    target_alpha = copy.deepcopy(net).alpha
+    target_filters = []
+    layer_transfer_network = 0
+    for name, param in copy.deepcopy(net).named_parameters():
+        if 'conv' in name:
+            #print(name, param.size())
+            filterparam = unweightedFilter(param, target_alpha[layer_transfer_network])
+            target_filters.append(param)
+            layer_transfer_network += 1
+    red_net = reducedresnet.resnet56(target_alpha, target_filters)
+    # check structure
+    for name, param in red_net.named_parameters():
+        if 'layer' in name and 'conv' in name:
+            print(name, param.size())
+
     iteration.append(epoch)
     running_loss = 0
     print(epoch)
@@ -98,6 +124,7 @@ for epoch in range(Coarse_Epoch):
             print(i,loss.data)
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
+
 
     # validation
     valid_total = 0

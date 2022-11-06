@@ -32,33 +32,7 @@ from torch.autograd import Variable
 import numpy as np
 
 #__all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet164','resnet1202']
-__all__ = ['resnet20']
-class AlphaTerm():
-    a = []
-    weights = []
-    @staticmethod
-    def _weights_init(m):
-        classname = m.__class__.__name__
-        #print(classname)
-        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-            init.kaiming_normal_(m.weight)
-            if isinstance(m, nn.Conv2d):
-                print(m.weight.size())
-                in_planes = m.weight.size()[1]
-                alpha = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-                alpha = F.softmax(alpha, dim = 0)
-                print(alpha)
-                AlphaTerm.a.append(alpha)
-                weights_copy = m.weight.clone().detach()
-                AlphaTerm.weights.append(weights_copy)
-                for i in range(in_planes):
-                    weights_copy[i] *= alpha[i]
-                #print(weights_copy.is_leaf)
-                #print(weights_copy.requires_grad_(True).is_leaf)
-                #print(weights_copy[0][0][0][0],m.weight[0][0][0][0],alpha[0])
-                m.weight = nn.Parameter(weights_copy.requires_grad_(True))
-                #a.append(alpha)
-    
+__all__ = ['resnet20']  
 
 class LambdaLayer(nn.Module):
     def __init__(self, lambd):
@@ -72,7 +46,7 @@ class LambdaLayer(nn.Module):
 class ReducedBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, inter_planes, planes, alphas, weights,stride=1, option='A'):
+    def __init__(self, in_planes, inter_planes, planes, alphas, weights, stride=1, option='A'):
         super(ReducedBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, inter_planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(inter_planes)
@@ -101,19 +75,12 @@ class ReducedBlock(nn.Module):
         alpha_2 = alphas[1]
         weight_1 = weights[0]
         weight_2 = weights[1]
-        #print('layer1_a: ',self.layer_weights1.size())
-        #self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
-        #self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
-        #print('layer2_a: ',self.layer_weights2.size())
         for i in range(in_planes):
             weight_1[i] *= alpha_1[i]
         self.conv1.weight = nn.Parameter(weight_1.requires_grad_(True))
         for i in range(inter_planes):
             weight_2[i] *= alpha_2[i]
         self.conv2.weight = nn.Parameter(weight_2.requires_grad_(True))
-        #for i in range(planes):
-        #    self.conv2.weight[i] *= self.layer_weights2[i]
-        #print(self.conv1)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -123,9 +90,9 @@ class ReducedBlock(nn.Module):
         return out
 
 
-class TargetResNet(nn.Module):
+class ReducedResNet(nn.Module):
     def __init__(self, block, num_blocks, pruned_alpha, pruned_weights, num_classes=10):
-        super(TargetResNet, self).__init__()
+        super(ReducedResNet, self).__init__()
         
         # filters and their weights for the input layer 
         input2first_layer_a = pruned_alpha[0]
@@ -157,7 +124,7 @@ class TargetResNet(nn.Module):
         num_blocks = len(alphas)//2
 
         strides = [stride] + [1]*(num_blocks-1)
-        print(strides)
+        #print(strides)
         layers = []
         for i in range(num_blocks):            
             in_planes = alphas[2*i].size()[0]
@@ -166,7 +133,7 @@ class TargetResNet(nn.Module):
                 out_planes = alphas[2*i+2].size()[0]
             else:
                 out_planes = output_layers
-            print(in_planes, inter_planes, out_planes)
+            #print(in_planes, inter_planes, out_planes)
             block_weights = weights[2*i:2*i+2]
             block_alpha = alphas[2*i:2*i+2]
             layers.append(block(in_planes, inter_planes, out_planes, block_alpha, block_weights, strides[i]))
@@ -187,31 +154,31 @@ class TargetResNet(nn.Module):
         return
 
 #
-def resnet20():
-    return TargetResNet(ReducedBlock, [3, 3, 3])
+def resnet20(alpha, filter):
+    return ReducedResNet(ReducedBlock, [3, 3, 3], alpha, filter)
 
 
 def resnet32():
-    return TargetResNet(ReducedBlock, [5, 5, 5])
+    return ReducedResNet(ReducedBlock, [5, 5, 5])
 
 
 def resnet44():
-    return TargetResNet(ReducedBlock, [7, 7, 7])
+    return ReducedResNet(ReducedBlock, [7, 7, 7])
 
 #
 def resnet56(alpha, filter):
-    return TargetResNet(ReducedBlock, [9, 9, 9], alpha, filter)
+    return ReducedResNet(ReducedBlock, [9, 9, 9], alpha, filter)
 
 #
 def resnet110():
-    return TargetResNet(ReducedBlock, [18, 18, 18])
+    return ReducedResNet(ReducedBlock, [18, 18, 18])
 
 #
 def resnet164():
-    return TargetResNet(ReducedBlock, [27, 27, 27])
+    return ReducedResNet(ReducedBlock, [27, 27, 27])
 
 def resnet1202():
-    return TargetResNet(ReducedBlock, [200, 200, 200])
+    return ReducedResNet(ReducedBlock, [200, 200, 200])
 
 
 def test(net):

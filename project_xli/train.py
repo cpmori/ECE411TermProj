@@ -26,19 +26,20 @@ def alphaL2(alphas):
     return l2norm
 def unweightedFilter(param, alphas):
     new_param = torch.empty(param.size())
-    print(alphas.size(), param.size())
+    #print(alphas.size(), param.size())
     for i, filter in enumerate(param):
         alpha = alphas[i]
         new_param[i] = filter/alpha
     return new_param
 
 transform = transforms.Compose(
-    [transforms.ToTensor(),
+    [transforms.RandomHorizontalFlip(),
+     transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 batch_size = 128
 
-dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
+dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
 train_size = int(.8 * len(dataset))
 valid_size = len(dataset) - train_size
@@ -47,7 +48,7 @@ trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_si
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
 validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
-testset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=False,
+testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=2)
@@ -58,12 +59,14 @@ classes = ('plane', 'car', 'bird', 'cat',
 # settings
 Coarse_Epoch = 100
 
-net = resnet.resnet56()
+# target model
+net = resnet.resnet20()
 if torch.cuda.is_available():
     net.cuda()
     print(torch.cuda.get_device_name(0))
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss().cuda()
+# SGD
 optimizer = optim.SGD(net.parameters(),
                         lr = .1,
                         momentum=.9,
@@ -75,7 +78,7 @@ print(optimizer)
 coarse_loss_regu = .1 * alphaL2(net.alpha)
 print(coarse_loss_regu)
 # train & valid
-best_model = resnet.resnet56()
+best_model = resnet.resnet20()
 best_val = 0
 best_epoch = 0
 iteration = []
@@ -83,21 +86,21 @@ train_acc = []
 valid_acc = []
 
 for epoch in range(Coarse_Epoch):
-        # generate reduced resnet
-    target_alpha = copy.deepcopy(net).alpha
+    # generate resnet (via conv weights and channels)
+    target_alpha = copy.deepcopy(net.alpha)
     target_filters = []
     layer_transfer_network = 0
-    for name, param in copy.deepcopy(net).named_parameters():
+    for name, param in net.named_parameters():
         if 'conv' in name:
             #print(name, param.size())
             filterparam = unweightedFilter(param, target_alpha[layer_transfer_network])
-            target_filters.append(param)
+            target_filters.append(filterparam)
             layer_transfer_network += 1
-    red_net = reducedresnet.resnet56(target_alpha, target_filters)
+    red_net = reducedresnet.resnet20(target_alpha, target_filters)
     # check structure
-    for name, param in red_net.named_parameters():
-        if 'layer' in name and 'conv' in name:
-            print(name, param.size())
+    #for name, param in red_net.named_parameters():
+    #    if 'layer' in name and 'conv' in name:
+    #        print(name, param.size())
 
     iteration.append(epoch)
     running_loss = 0
@@ -147,7 +150,9 @@ for epoch in range(Coarse_Epoch):
     print("best model (epoch, accuracy): ", best_epoch, best_val)
 
     scheduler.step()
-    print(scheduler.get_last_lr())
+    #print(optimizer)
+
+# test
 
 correct = 0
 total = 0

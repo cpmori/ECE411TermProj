@@ -161,7 +161,7 @@ def test(net):
     #print(net)
     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
 
-
+""" 
 if __name__ == "__main__":
     for net_name in __all__:
         if net_name.startswith('resnet'):
@@ -176,3 +176,4 @@ if __name__ == "__main__":
                     print(layer_2,':::\n', list(module_2.named_children()))
                 print(layer,'::\n', len(list(module.named_children())))
             print()
+ """

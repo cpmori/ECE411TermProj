@@ -34,6 +34,7 @@ def unweightedFilter(param, alphas):
 
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
+     transforms.RandomCrop(32, 4),
      transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 

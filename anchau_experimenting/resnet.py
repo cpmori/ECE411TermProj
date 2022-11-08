@@ -31,23 +31,13 @@ from torch.autograd import Variable
 
 import numpy as np
 
-apply_alpha = False
 #__all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet164','resnet1202']
 __all__ = ['resnet20']
-class AlphaTerm():
-    a = []
-    weights = []
-
-    @staticmethod
-    def _weights_init(m):
-        classname = m.__class__.__name__
-        #print(classname)
-        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-            init.kaiming_normal_(m.weight)
-
-    @staticmethod
-    def findWeight(model):
-        AlphaTerm.weights = []
+def _weights_init(m):
+    classname = m.__class__.__name__
+    #print(classname)
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight)
 
 class LambdaLayer(nn.Module):
     def __init__(self, lambd):
@@ -58,15 +48,13 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
-class TargetBlock(nn.Module):
+class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='B'):
-        super(TargetBlock, self).__init__()
-        self.alpha1 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
+    def __init__(self, in_planes, planes, stride=1, option='A'):
+        super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.alpha2 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
@@ -79,26 +67,28 @@ class TargetBlock(nn.Module):
                 self.shortcut = LambdaLayer(lambda x:
                                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
             elif option == 'B':
-                self.alpha_sc = nn.Parameter(torch.rand([self.expansion * planes,1,1,1], requires_grad=True))
                 self.shortcut = nn.Sequential(
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
                      nn.BatchNorm2d(self.expansion * planes)
                 )
+        self.layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
+        self.layer_weights1 = F.softmax(self.layer_weights1, dim = 0)
+        #print(self.layer_weights1, self.layer_weights1.size())
+        self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
+        self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
+        #print(self.layer_weights2, self.layer_weights2.size())
 
     def forward(self, x):
-        self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
-        self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
-        if 'Conv2d' in str(self.shortcut):
-            self.shortcut[0].weight.mul(F.softmax(self.alpha_sc, dim=0))
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
         out = F.relu(out)
         return out
 
-class TargetResNet(nn.Module):
+
+class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
-        super(TargetResNet, self).__init__()
+        super(ResNet, self).__init__()
         self.in_planes = 16
         
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
@@ -107,13 +97,8 @@ class TargetResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
         self.linear = nn.Linear(64, num_classes)
-        alpha_apply = AlphaTerm()
 
-        self.apply(alpha_apply._weights_init)
-        self.alpha = alpha_apply.a
-        self.weights = alpha_apply.weights
-        #print(alpha_apply.a[1].size())
-        #print(alpha_apply.weights[1].size())
+        self.apply(_weights_init)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -134,36 +119,36 @@ class TargetResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
-    def alphaL2(self):
-        l2norm = 0
-        
-        return l2norm
+    
+    def set_layer_weights(self, l1, l2, l3):
+        return
+
 #
 def resnet20():
-    return TargetResNet(TargetBlock, [3, 3, 3])
+    return ResNet(BasicBlock, [3, 3, 3])
 
 
 def resnet32():
-    return TargetResNet(TargetBlock, [5, 5, 5])
+    return ResNet(BasicBlock, [5, 5, 5])
 
 
 def resnet44():
-    return TargetResNet(TargetBlock, [7, 7, 7])
+    return ResNet(BasicBlock, [7, 7, 7])
 
 #
 def resnet56():
-    return TargetResNet(TargetBlock, [9, 9, 9])
+    return ResNet(BasicBlock, [9, 9, 9])
 
 #
 def resnet110():
-    return TargetResNet(TargetBlock, [18, 18, 18])
+    return ResNet(BasicBlock, [18, 18, 18])
 
 #
 def resnet164():
-    return TargetResNet(TargetBlock, [27, 27, 27])
+    return ResNet(BasicBlock, [27, 27, 27])
 
 def resnet1202():
-    return TargetResNet(TargetBlock, [200, 200, 200])
+    return ResNet(BasicBlock, [200, 200, 200])
 
 
 def test(net):
@@ -175,45 +160,3 @@ def test(net):
     print("Total number of params", total_params)
     #print(net)
     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
-
-
-if __name__ == "__main__":
-
-    net = resnet20()
-    all_alpha = net.alpha
-    all_filters = []
-    for name, param in net.named_parameters():
-        if 'conv' in name:
-            print(name, param.size())
-            all_filters.append(param)
-        if 'alpha' in name:
-            print(name, param.size())
-    for layer_alpha in all_alpha:
-        print(layer_alpha.size())
-        #for filter_alpha in layer_alpha:
-        #    print(filter_alpha)
-
-    print(len(all_alpha), len(all_filters))
-
-
-    #for net_name in __all__:
-    #    if net_name.startswith('resnet'):
-    #        current_net = globals()[net_name]()
-    #        print(net_name)
-    #        test(current_net)
-    #        
-    #        #for name, param in current_net.named_parameters():
-    #        #    print(name,'\t', param.size())
-    #        #    #for i, filter in enumerate(param):
-    #        #    #    a = layer_weights1[i]
-    #        #    #    aW = a * filter
-    #        #    #    W = aW / filter
-    #        #        #print(a)
-    #        #    #print(current_net.get_parameter(name))
-    #        #for layer, module in current_net.named_children():
-    #        #    for layer_2, module_2 in module.named_children():
-    #        #        print(layer_2,':::\n', list(module_2.named_children()))
-    #        #    print(layer,'::\n', len(list(module.named_children())))
-    #        print()
-    #
-    

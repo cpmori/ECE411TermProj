@@ -31,7 +31,7 @@ from torch.autograd import Variable
 
 import numpy as np
 
-apply_alpha = True
+apply_alpha = False
 #__all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet164','resnet1202']
 __all__ = ['resnet20']
 class AlphaTerm():
@@ -44,29 +44,6 @@ class AlphaTerm():
         #print(classname)
         if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
             init.kaiming_normal_(m.weight)
-            # apply alpha to conv filters
-            if isinstance(m, nn.Conv2d) and apply_alpha:
-                #print(m.weight.size())
-                num_filters = m.weight.size()[0]
-                #print(num_filters)
-                #print(in_planes)
-                #if in_planes != 3:    
-                # generate alpha (constant for coarse train)
-                #alpha = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
-                alpha = torch.from_numpy(np.ones(num_filters))
-                alpha = F.softmax(alpha, dim = 0)
-                #print(alpha)
-                AlphaTerm.a.append(alpha)
-                weights_copy = m.weight.clone().detach()
-                AlphaTerm.weights.append(weights_copy)
-                # apply alpha to each input conv filter
-                for i in range(num_filters):
-                    weights_copy[i] *= alpha[i]
-                #print(weights_copy.is_leaf)
-                #print(weights_copy.requires_grad_(True).is_leaf)
-                #print(weights_copy[0][0][0][0],m.weight[0][0][0][0],alpha[0])
-                m.weight = nn.Parameter(weights_copy.requires_grad_(True))
-                #a.append(alpha)
 
     @staticmethod
     def findWeight(model):
@@ -84,10 +61,12 @@ class LambdaLayer(nn.Module):
 class TargetBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='A'):
+    def __init__(self, in_planes, planes, stride=1, option='B'):
         super(TargetBlock, self).__init__()
+        self.alpha1 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
+        self.alpha2 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
@@ -100,18 +79,22 @@ class TargetBlock(nn.Module):
                 self.shortcut = LambdaLayer(lambda x:
                                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
             elif option == 'B':
+                self.alpha_sc = nn.Parameter(torch.rand([self.expansion * planes,1,1,1], requires_grad=True))
                 self.shortcut = nn.Sequential(
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
                      nn.BatchNorm2d(self.expansion * planes)
                 )
 
     def forward(self, x):
+        self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
+        self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
+        if 'Conv2d' in str(self.shortcut):
+            self.shortcut[0].weight.mul(F.softmax(self.alpha_sc, dim=0))
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
         out = F.relu(out)
         return out
-
 
 class TargetResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
@@ -151,7 +134,10 @@ class TargetResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
-
+    def alphaL2(self):
+        l2norm = 0
+        
+        return l2norm
 #
 def resnet20():
     return TargetResNet(TargetBlock, [3, 3, 3])
@@ -200,6 +186,8 @@ if __name__ == "__main__":
         if 'conv' in name:
             print(name, param.size())
             all_filters.append(param)
+        if 'alpha' in name:
+            print(name, param.size())
     for layer_alpha in all_alpha:
         print(layer_alpha.size())
         #for filter_alpha in layer_alpha:

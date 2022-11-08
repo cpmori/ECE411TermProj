@@ -13,17 +13,14 @@ import reducedresnet
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
-def alphaL2(alphas):
-    l2norm = 0
-    for alpha in alphas:
-        #print(alpha)
-        #print(alpha.norm())
-        #print(np.sqrt(sum(alpha**2)))
-        for element in alpha:
-            l2norm += element**2
-    l2norm = np.sqrt(l2norm)
-    #print(l2norm)
-    return l2norm
+def alphaL2(net: nn.Module):
+    sumofAlphaSquared = 0
+    for name, param in net.named_parameters():
+        if 'alpha' in name:
+            sumofAlphaSquared += param.norm()**2
+    #print(sumofAlphaSquared)
+    return torch.sqrt(sumofAlphaSquared)
+
 def unweightedFilter(param, alphas):
     new_param = torch.empty(param.size())
     #print(alphas.size(), param.size())
@@ -39,7 +36,7 @@ transform = transforms.Compose(
 
 batch_size = 128
 
-dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
+dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
 train_size = int(.8 * len(dataset))
 valid_size = len(dataset) - train_size
@@ -48,7 +45,7 @@ trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_si
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
 validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
-testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
+testset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=2)
@@ -75,8 +72,7 @@ optimizer = optim.SGD(net.parameters(),
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Coarse_Epoch)
 print(optimizer)
 
-coarse_loss_regu = .1 * alphaL2(net.alpha)
-print(coarse_loss_regu)
+
 # train & valid
 best_model = resnet.resnet20()
 best_val = 0
@@ -87,16 +83,16 @@ valid_acc = []
 
 for epoch in range(Coarse_Epoch):
     # generate resnet (via conv weights and channels)
-    target_alpha = copy.deepcopy(net.alpha)
-    target_filters = []
-    layer_transfer_network = 0
-    for name, param in net.named_parameters():
-        if 'conv' in name:
-            #print(name, param.size())
-            filterparam = unweightedFilter(param, target_alpha[layer_transfer_network])
-            target_filters.append(filterparam)
-            layer_transfer_network += 1
-    red_net = reducedresnet.resnet20(target_alpha, target_filters)
+    #target_alpha = copy.deepcopy(net.alpha)
+    #target_filters = []
+    #layer_transfer_network = 0
+    #for name, param in net.named_parameters():
+    #    if 'conv' in name:
+    #        #print(name, param.size())
+    #        filterparam = unweightedFilter(param, target_alpha[layer_transfer_network])
+    #        target_filters.append(filterparam)
+    #        layer_transfer_network += 1
+    #red_net = reducedresnet.resnet20(target_alpha, target_filters, 0)
     # check structure
     #for name, param in red_net.named_parameters():
     #    if 'layer' in name and 'conv' in name:
@@ -115,6 +111,7 @@ for epoch in range(Coarse_Epoch):
         
         optimizer.zero_grad()
         outputs = net(inputs)
+        coarse_loss_regu = .1 * alphaL2(net)
         loss = criterion(outputs, labels) + coarse_loss_regu
         loss.backward()
         optimizer.step()

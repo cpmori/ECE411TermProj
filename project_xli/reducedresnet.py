@@ -66,11 +66,11 @@ class ReducedBlock(nn.Module):
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
                      nn.BatchNorm2d(self.expansion * planes)
                 )
-                self.sc_weights = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
+                self.sc_weights = torch.from_numpy(np.ones(in_planes))
                 self.sc_weights = F.softmax(self.sc_weights, dim = 0)
                 print('shortcut_a: ',self.sc_weights.size())
                 for i in range(in_planes):
-                    self.shortcut.weight[i] *= self.sc_weights[i]
+                    self.shortcut.weight[i] = self.sc_weights[i]
         alpha_1 = alphas[0]
         alpha_2 = alphas[1]
         weight_1 = weights[0]
@@ -91,12 +91,13 @@ class ReducedBlock(nn.Module):
 
 
 class ReducedResNet(nn.Module):
-    def __init__(self, block, num_blocks, pruned_alpha, pruned_weights, num_classes=10):
+    def __init__(self, block, num_blocks, pruned_alpha, pruned_weights, fc_layer, num_classes=10):
         super(ReducedResNet, self).__init__()
         
         # filters and their weights for the input layer 
         input2first_layer_a = pruned_alpha[0]
         input2first_layer_w = pruned_weights[0]
+
         first_layer_a = pruned_alpha[0:num_blocks[0]*2]
         second_layer_a = pruned_alpha[2*num_blocks[0]: 2*(sum(num_blocks[:2]))]
         third_layer_a = pruned_alpha[2*(sum(num_blocks[:2])): 2*(sum(num_blocks))]
@@ -112,13 +113,12 @@ class ReducedResNet(nn.Module):
         self.layer2 = self._make_layer(block, second_layer_a, second_layer_w, third_layer_a[0].size()[0], 2)
         self.layer3 = self._make_layer(block, third_layer_a, third_layer_w, 64, 2)
         self.linear = nn.Linear(64, num_classes)
-        #alpha_apply = AlphaTerm()
-
-        #self.apply(alpha_apply._weights_init)
-        #self.alpha = alpha_apply.a
-        #self.weights = alpha_apply.weights
-        #print(alpha_apply.a[1].size())
-        #print(alpha_apply.weights[1].size())
+        
+        input_weights = input2first_layer_w
+        for i, a in enumerate(input2first_layer_a):
+            input_weights[i] *= a
+        self.conv1.weight = nn.Parameter(input_weights.requires_grad_(True))
+        print(self.conv1.weight)
 
     def _make_layer(self, block, alphas, weights, output_layers, stride = 1):
         num_blocks = len(alphas)//2
@@ -154,8 +154,8 @@ class ReducedResNet(nn.Module):
         return
 
 #
-def resnet20(alpha, filter):
-    return ReducedResNet(ReducedBlock, [3, 3, 3], alpha, filter)
+def resnet20(alpha, filter, fc_layer):
+    return ReducedResNet(ReducedBlock, [3, 3, 3], alpha, filter, fc_layer)
 
 
 def resnet32():
@@ -166,8 +166,8 @@ def resnet44():
     return ReducedResNet(ReducedBlock, [7, 7, 7])
 
 #
-def resnet56(alpha, filter):
-    return ReducedResNet(ReducedBlock, [9, 9, 9], alpha, filter)
+def resnet56(alpha, filter, fc_layer):
+    return ReducedResNet(ReducedBlock, [9, 9, 9], alpha, filter, fc_layer)
 
 #
 def resnet110():

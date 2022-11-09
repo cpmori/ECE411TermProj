@@ -34,20 +34,12 @@ import numpy as np
 apply_alpha = False
 #__all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet164','resnet1202']
 __all__ = ['resnet20']
-class AlphaTerm():
-    a = []
-    weights = []
 
-    @staticmethod
-    def _weights_init(m):
-        classname = m.__class__.__name__
-        #print(classname)
-        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-            init.kaiming_normal_(m.weight)
-
-    @staticmethod
-    def findWeight(model):
-        AlphaTerm.weights = []
+def _weights_init(m):
+    classname = m.__class__.__name__
+    #print(classname)
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight)
 
 class LambdaLayer(nn.Module):
     def __init__(self, lambd):
@@ -61,7 +53,7 @@ class LambdaLayer(nn.Module):
 class TargetBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='B'):
+    def __init__(self, in_planes, planes, stride=1, option='A'):
         super(TargetBlock, self).__init__()
         self.alpha1 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -107,13 +99,8 @@ class TargetResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
         self.linear = nn.Linear(64, num_classes)
-        alpha_apply = AlphaTerm()
 
-        self.apply(alpha_apply._weights_init)
-        self.alpha = alpha_apply.a
-        self.weights = alpha_apply.weights
-        #print(alpha_apply.a[1].size())
-        #print(alpha_apply.weights[1].size())
+        self.apply(_weights_init)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)

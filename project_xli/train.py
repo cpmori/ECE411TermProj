@@ -8,7 +8,6 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 
 import resnet
-import reducedresnet
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,16 +17,9 @@ def alphaL2(net: nn.Module):
     for name, param in net.named_parameters():
         if 'alpha' in name:
             sumofAlphaSquared += param.norm()**2
-    #print(sumofAlphaSquared)
+
     return torch.sqrt(sumofAlphaSquared)
 
-def unweightedFilter(param, alphas):
-    new_param = torch.empty(param.size())
-    #print(alphas.size(), param.size())
-    for i, filter in enumerate(param):
-        alpha = alphas[i]
-        new_param[i] = filter/alpha
-    return new_param
 
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
@@ -37,7 +29,7 @@ transform = transforms.Compose(
 
 batch_size = 128
 
-dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
+dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
 train_size = int(.8 * len(dataset))
 valid_size = len(dataset) - train_size
@@ -46,7 +38,7 @@ trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_si
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
 validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
-testset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=False,
+testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=2)
@@ -82,23 +74,8 @@ iteration = []
 train_acc = []
 valid_acc = []
 
+# coarse train
 for epoch in range(Coarse_Epoch):
-    # generate resnet (via conv weights and channels)
-    #target_alpha = copy.deepcopy(net.alpha)
-    #target_filters = []
-    #layer_transfer_network = 0
-    #for name, param in net.named_parameters():
-    #    if 'conv' in name:
-    #        #print(name, param.size())
-    #        filterparam = unweightedFilter(param, target_alpha[layer_transfer_network])
-    #        target_filters.append(filterparam)
-    #        layer_transfer_network += 1
-    #red_net = reducedresnet.resnet20(target_alpha, target_filters, 0)
-    # check structure
-    #for name, param in red_net.named_parameters():
-    #    if 'layer' in name and 'conv' in name:
-    #        print(name, param.size())
-
     iteration.append(epoch)
     running_loss = 0
     print(epoch)
@@ -122,7 +99,7 @@ for epoch in range(Coarse_Epoch):
         train_total += labels.size(0)
         train_correct += (predicted == labels.flatten()).sum().item()
         if i%100 == 0:
-            print(i,loss.data)
+            print('batch: ',i,' loss: ',loss.data.item())#, ' alpha loss: ',coarse_loss_regu.item())
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
 
@@ -130,22 +107,23 @@ for epoch in range(Coarse_Epoch):
     # validation
     valid_total = 0
     valid_correct = 0
-    for i, data in enumerate(validloader,0):
-        inputs, labels = data
-        if torch.cuda.is_available():
-            inputs = inputs.cuda()
-            labels = labels.cuda()
-        outputs = net(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        valid_total += labels.size(0)
-        valid_correct += (predicted == labels.flatten()).sum().item()
-    print("validation: ", valid_total, valid_correct, valid_correct/valid_total)
-    valid_acc.append(valid_correct/valid_total)
-    if valid_correct/valid_total > best_val:
-        best_val = valid_correct/valid_total
-        best_epoch = epoch
-        best_model = copy.deepcopy(net)
-    print("best model (epoch, accuracy): ", best_epoch, best_val)
+    with torch.no_grad():
+        for i, data in enumerate(validloader,0):
+            inputs, labels = data
+            if torch.cuda.is_available():
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+            outputs = net(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            valid_total += labels.size(0)
+            valid_correct += (predicted == labels.flatten()).sum().item()
+        print("validation: ", valid_total, valid_correct, valid_correct/valid_total)
+        valid_acc.append(valid_correct/valid_total)
+        if valid_correct/valid_total > best_val:
+            best_val = valid_correct/valid_total
+            best_epoch = epoch
+            best_model = copy.deepcopy(net)
+        print("best model (epoch, accuracy): ", best_epoch, best_val)
 
     scheduler.step()
     #print(optimizer)
@@ -183,9 +161,13 @@ print("best validation: ", best_total, best_correct, best_correct/best_total)
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)
+plt.title("Accuracy vs Epoch")
+plt.legend(["training",'validation'])
 plt.figure()
 print(all_predictions)
 print(correct_predictions)
 plt.bar(list(correct_predictions.keys()), correct_predictions.values())
+plt.title("Class accuracy")
 plt.show()
-    
+
+# sampling and update

@@ -127,7 +127,7 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
-
+torch.save(net,'./saved_models/coarse.pth')
 # test
 
 correct = 0

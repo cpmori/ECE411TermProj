@@ -44,12 +44,24 @@ def get_threshold(net, alpha):
     log_prob = m.log_prob(selection)
     return selection, log_prob
 
-def update_policy(optimizer:torch.optim.Adam, rewards, probs):
+def update_policy(optimizer:torch.optim.RMSProp, rewards, probs):
+    print(f'Updating Thresnet Policy. R:{rewards}. log_prob{probs}')
     optimizer.zero_grad()
     loss = torch.mean(rewards * torch.sum(probs))
     loss.backward()
     optimizer.step()
     return
+
+def calc_episode_reward(subnet, losses, hyperparam = 2):
+    print(f'Calculating Thresnet Episode Reward. losses{losses}')
+    import numpy as np
+    l_avg = torch.mean(losses)
+    param_count = 0
+    for x in filter(lambda p: p.requires_grad, subnet.parameters()):
+        param_count += np.prod(x.data.numpy().shape)
+    print(f'Param count: {param_count}')
+    reward = -(l_avg + hyperparam * param_count)
+    return reward
 
 def model_info(net:nn.Module):
     #print(net)

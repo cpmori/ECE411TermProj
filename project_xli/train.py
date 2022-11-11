@@ -129,6 +129,7 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
+torch.save(net,'./saved_models/coarse.pth')
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)

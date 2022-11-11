@@ -167,7 +167,6 @@ def test(net):
 if __name__ == "__main__":
 
     net = resnet20()
-    all_alpha = net.alpha
     all_filters = []
     for name, param in net.named_parameters():
         if 'conv' in name:

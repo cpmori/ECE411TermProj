@@ -99,7 +99,9 @@ for epoch in range(Coarse_Epoch):
         train_total += labels.size(0)
         train_correct += (predicted == labels.flatten()).sum().item()
         if i%100 == 0:
-            print('batch: ',i,' loss: ',loss.data.item())#, ' alpha loss: ',coarse_loss_regu.item())
+            print('batch: ',i,' loss: ',loss.data.item(), ' alpha regu: ',coarse_loss_regu.item())
+            #print(net.get_parameter("layer1.0.alpha1").flatten())
+            #print(F.softmax(net.get_parameter("layer1.0.alpha1").clone().flatten(),dim=0))
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
 
@@ -127,7 +129,13 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
-
+plt.figure()
+plt.plot(iteration, train_acc)
+plt.plot(iteration, valid_acc)
+plt.title("Accuracy vs Epoch")
+plt.legend(["training",'validation'])
+plt.savefig("training_acc.svg")
+plt.show()
 # test
 
 correct = 0
@@ -158,16 +166,13 @@ for i, data in enumerate(testloader, 0):
             correct_predictions[classes[cls]] += 1
 print("latest: ", total, correct, correct/total)
 print("best validation: ", best_total, best_correct, best_correct/best_total)
-plt.figure()
-plt.plot(iteration, train_acc)
-plt.plot(iteration, valid_acc)
-plt.title("Accuracy vs Epoch")
-plt.legend(["training",'validation'])
+
 plt.figure()
 print(all_predictions)
 print(correct_predictions)
 plt.bar(list(correct_predictions.keys()), correct_predictions.values())
 plt.title("Class accuracy")
+plt.savefig('class_pred.svg')
 plt.show()
 
 # sampling and update

@@ -74,6 +74,7 @@ class BasicBlock(nn.Module):
         self.layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
         self.layer_weights1 = F.softmax(self.layer_weights1, dim = 0)
         #print(self.layer_weights1, self.layer_weights1.size())
+        #print(self.layer_weights1.size())
         self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
         self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
         #print(self.layer_weights2, self.layer_weights2.size())

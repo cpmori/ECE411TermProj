@@ -79,7 +79,7 @@ def main():
 
     
 
-    transform = transforms.Compose(
+    """ transform = transforms.Compose(
         [transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -103,11 +103,11 @@ def main():
     classes = ('plane', 'car', 'bird', 'cat',
             'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-    num_epochs = 20
+    num_epochs = 20 """
 
 
     net = r.resnet20()
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    """ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     net.to(device)
 
@@ -133,7 +133,7 @@ def main():
     plt.title("Accurcay vs Number of Epochs")
     plt.xlabel("Num Epochs")
     plt.ylabel("Accuracy")
-    plt.show()
+    plt.show() """
 
 
 if __name__ == '__main__':

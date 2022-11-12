@@ -20,14 +20,18 @@ class ConstantPrune(prune.BasePruningMethod):
         c = 1
         thresh = self.thres
         sum_of_noise_alpha = 0
+        print(self)
+        print(alphas.size(), noise_alpha.size())
         while sum_of_noise_alpha < thresh:
             selected_vals, selected_idx = torch.topk(noise_alpha,c,dim=0)
             sum_of_noise_alpha = selected_vals.sum()
             c += 1
-        _, pruned_alpha_idx = torch.topk(alphas, c)
+            print(c)
+        print(alphas.size(), c)
+        _, pruned_alpha_idx = torch.topk(alphas, c, dim=0)
         mask = torch.zeros(alphas.size())
         mask[pruned_alpha_idx] = 1
-
+        print(mask.flatten())
         return mask
 
 # adaptive thres selection via thresnet
@@ -36,7 +40,7 @@ class PaperPrune(prune.BasePruningMethod):
     def __init__(self, thresnet, thres_array):
         self.thresnet : tnet.ThresNet = thresnet
         self.thres_array = thres_array
-        self.log_prob = torch.tensor()
+        self.log_prob = torch.Tensor()
 
     def compute_mask(self, alphas, default_mask):
         # log(log(uniform)) noise
@@ -55,7 +59,7 @@ class PaperPrune(prune.BasePruningMethod):
             selected_vals, selected_idx = torch.topk(noise_alpha,c,dim=0)
             sum_of_noise_alpha = selected_vals.sum()
             c += 1
-        _, pruned_alpha_idx = torch.topk(alphas, c)
+        _, pruned_alpha_idx = torch.topk(alphas, c, dim=0)
         mask = torch.zeros(alphas.size())
         mask[pruned_alpha_idx] = 1
 
@@ -65,13 +69,16 @@ class PaperPrune(prune.BasePruningMethod):
         return self.log_prob
 
 def prune_layer(module, name, thresnet):
-    PaperPrune.apply(module, name, thresnet)
+    #ConstantPrune.apply(module, name, 0.7)
+    PaperPrune.apply(module, name, thresnet, [0.5,0.6,0.7,0.8,0.9])
 
 def prune_net(net, thresnet):
-    for name, param in net.named_modules():
+    for name, module in net.named_modules():
         if 'layer' in name and '.' in name and ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
-            prune_layer(param, 'alpha1',thresnet)
-            prune_layer(param, 'alpha2',thresnet)
+            print('----------')
+            print(name)
+            prune_layer(module, 'alpha1',thresnet)
+            prune_layer(module, 'alpha2',thresnet)
             
 def update_layer(module, name):
     old_weights = torch.clone(getattr(module, name+"_orig"))

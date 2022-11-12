@@ -55,10 +55,10 @@ class TargetBlock(nn.Module):
 
     def __init__(self, in_planes, planes, stride=1, option='A'):
         super(TargetBlock, self).__init__()
-        self.alpha1 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
+        self.alpha1 = nn.Parameter(torch.ones([planes,1,1,1], requires_grad=True))
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.alpha2 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
+        self.alpha2 = nn.Parameter(torch.ones([planes,1,1,1], requires_grad=True))
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
@@ -174,14 +174,10 @@ if __name__ == "__main__":
             all_filters.append(param)
         if 'alpha' in name:
             print(name, param.size())
-    for layer_alpha in all_alpha:
-        print(layer_alpha.size())
-        #for filter_alpha in layer_alpha:
-        #    print(filter_alpha)
-
-    print(len(all_alpha), len(all_filters))
-
-
+    for name, module in net.named_modules():
+        if 'layer' in name and '.' in name and ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
+            print('----------')
+            print(name, module)
     #for net_name in __all__:
     #    if net_name.startswith('resnet'):
     #        current_net = globals()[net_name]()

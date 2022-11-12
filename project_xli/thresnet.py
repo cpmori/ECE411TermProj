@@ -15,7 +15,7 @@ class ThresNet(nn.Module):
         self.in16_2 = nn.Linear(32,64)
         self.in16_3 = nn.Linear(64,128)
         self.in32_1 = nn.Linear(32,64)
-        self.in32_1 = nn.Linear(64,128)
+        self.in32_2 = nn.Linear(64,128)
         self.in64 = nn.Linear(64,128)
 
         self.shrink1 = nn.Linear(128,64)
@@ -23,11 +23,15 @@ class ThresNet(nn.Module):
         self.shrink3 = nn.Linear(16,5)
 
     def forward(self, x):
-        if x.size().item() == 16:
+        x = x.flatten()
+        print(x.size())
+        if x.size()[0] == 16:
+            print(x.size()[0])
             out = F.relu(self.in16_1(x))
             out = F.relu(self.in16_2(out))
             out = F.relu(self.in16_3(out))
-        elif x.size().item() == 32:
+        elif x.size()[0] == 32:
+            print(x.size()[0])
             out = F.relu(self.in32_1(x))
             out = F.relu(self.in32_2(out))
         else:
@@ -44,7 +48,7 @@ def get_threshold(net, alpha):
     log_prob = m.log_prob(selection)
     return selection, log_prob
 
-def update_policy(optimizer:torch.optim.RMSProp, rewards, probs):
+def update_policy(optimizer:torch.optim.RMSprop, rewards, probs):
     print(f'Updating Thresnet Policy. R:{rewards}. log_prob{probs}')
     optimizer.zero_grad()
     loss = torch.mean(rewards * torch.sum(probs))

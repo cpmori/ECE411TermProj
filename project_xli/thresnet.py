@@ -2,6 +2,13 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
+import torch.nn.init as init
+
+def _weights_init(m):
+    classname = m.__class__.__name__
+    #print(classname)
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        init.kaiming_normal_(m.weight)
 
 # assume each episode is finished at the end of subnetwork (line 12 of algorithm 2)
 # only 1 reward, store the sum of all log_probs
@@ -22,6 +29,8 @@ class ThresNet(nn.Module):
         self.shrink2 = nn.Linear(64,16)
         self.shrink3 = nn.Linear(16,5)
 
+        self.apply(_weights_init)
+        
     def forward(self, x):
         x = x.flatten()
         print(x.size())
@@ -39,6 +48,7 @@ class ThresNet(nn.Module):
         out = F.relu(self.shrink1(out))
         out = F.relu(self.shrink2(out))
         out = F.softmax(self.shrink3(out),dim=0)
+        print(out)
         return out
 
 def get_threshold(net, alpha):

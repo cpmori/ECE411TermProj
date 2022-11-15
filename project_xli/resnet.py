@@ -153,7 +153,7 @@ def resnet1202():
     return TargetResNet(TargetBlock, [200, 200, 200])
 
 
-def test(net):
+def test(net:nn.Module):
     import numpy as np
     total_params = 0
 
@@ -162,6 +162,16 @@ def test(net):
     print("Total number of params", total_params)
     #print(net)
     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
+
+    for name, param in net.named_parameters():
+        print(name)
+        if 'alpha' in name:
+            print(name, param.flatten())
+        #if 'conv' in name:
+        #    print(name, param.size())
+        #if 'alpha' in name:
+        #    print(name, param.size())
+
 
 
 if __name__ == "__main__":

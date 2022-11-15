@@ -2,6 +2,7 @@ import torch.nn.utils.prune as prune
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import copy
 
 import thresnet as tnet
 import resnet
@@ -75,18 +76,27 @@ def prune_layer(module, name, thresnet):
 def prune_net(net, thresnet):
     for name, module in net.named_modules():
         if 'layer' in name and '.' in name and ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
-            print('----------')
-            print(name)
+            #print('----------')
+            #print(name)
             prune_layer(module, 'alpha1',thresnet)
             prune_layer(module, 'alpha2',thresnet)
             
 def update_layer(module, name):
-    old_weights = torch.clone(getattr(module, name+"_orig"))
-    old_mask = torch.clone(getattr(module, name+'_mask'))
+    #old_weights = torch.clone(getattr(module, name+"_orig"))
+    #old_mask = torch.clone(getattr(module, name+'_mask'))
+    #print(name)
+    
     prune.remove(module, name)
-    with torch.no_grad():
-        layer = getattr(module, name)
-        layer[old_mask] = old_weights[old_mask]
+
+    # I dont think this is necessary? (layer is the same before and after)
+    
+    #with torch.no_grad():
+    #    layer = getattr(module, name)
+    #    prev_layer = torch.clone(layer)
+    #    #print(layer.flatten())
+    #    layer[old_mask.bool()] = old_weights[old_mask.bool()]
+    #    #print(layer.flatten())
+    #    print(torch.equal(prev_layer, layer))
 
 def update_net(net):
     for name, param in net.named_modules():

@@ -33,14 +33,14 @@ class ThresNet(nn.Module):
         
     def forward(self, x):
         x = x.flatten()
-        print(x.size())
+        #print(x.size())
         if x.size()[0] == 16:
-            print(x.size()[0])
+            #print(x.size()[0])
             out = F.relu(self.in16_1(x))
             out = F.relu(self.in16_2(out))
             out = F.relu(self.in16_3(out))
         elif x.size()[0] == 32:
-            print(x.size()[0])
+            #print(x.size()[0])
             out = F.relu(self.in32_1(x))
             out = F.relu(self.in32_2(out))
         else:
@@ -48,7 +48,7 @@ class ThresNet(nn.Module):
         out = F.relu(self.shrink1(out))
         out = F.relu(self.shrink2(out))
         out = F.softmax(self.shrink3(out),dim=0)
-        print(out)
+        #print(out)
         return out
 
 def get_threshold(net, alpha):

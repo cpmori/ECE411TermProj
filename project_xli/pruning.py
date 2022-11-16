@@ -45,12 +45,11 @@ class PaperPrune(prune.BasePruningMethod):
 
     def compute_mask(self, alphas, default_mask):
         # log(log(uniform)) noise
-        noise_alpha = alphas - torch.log(-torch.log(torch.rand(alphas.size())))
+        noise_alpha = alphas - torch.log(-torch.log(torch.rand(alphas.size()))).cuda()
         # uniform noise
         #noise_alpha = alpha - torch.log(-torch.log(torch.rand(alpha.size())))
         noise_alpha = F.softmax(noise_alpha, dim=0)
         c = 1
-
         thresh_select, log_prob = tnet.get_threshold(self.thresnet, alphas)
         self.log_prob = log_prob
         thresh = self.thres_array[thresh_select]
@@ -61,9 +60,8 @@ class PaperPrune(prune.BasePruningMethod):
             sum_of_noise_alpha = selected_vals.sum()
             c += 1
         _, pruned_alpha_idx = torch.topk(alphas, c, dim=0)
-        mask = torch.zeros(alphas.size())
+        mask = torch.zeros(alphas.size()).cuda()
         mask[pruned_alpha_idx] = 1
-
         return mask
 
     def get_thresnet_returns(self):

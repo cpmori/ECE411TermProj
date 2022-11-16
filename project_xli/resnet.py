@@ -78,8 +78,24 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
-        self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
+        #if (self.alpha1.size()[0] == 16):
+        #    print(self.alpha1.flatten())
+        sampling = True
+        if sampling is True:
+            non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
+            non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
+            with torch.no_grad():
+                self.alpha1[non_masked_alpha1_idx] = F.softmax(self.alpha1[non_masked_alpha1_idx], dim=0)
+                self.alpha2[non_masked_alpha2_idx] = F.softmax(self.alpha2[non_masked_alpha2_idx], dim=0)
+            #if (self.alpha1.size()[0] == 16):
+            #    print(non_masked_alpha1_idx)
+            #    print(self.alpha1.flatten())
+
+            self.conv1.weight.mul(self.alpha1)
+            self.conv2.weight.mul(self.alpha2)
+        else:
+            self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
+            self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
         if 'Conv2d' in str(self.shortcut):
             self.shortcut[0].weight.mul(F.softmax(self.alpha_sc, dim=0))
         out = F.relu(self.bn1(self.conv1(x)))

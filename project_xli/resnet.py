@@ -78,22 +78,27 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        #if (self.alpha1.size()[0] == 16):
-        #    print(self.alpha1.flatten())
         sampling = True
+        # in sampling
+        # softalpha: p_hat
+        # alpha: p
         if sampling is True:
             non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
             non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
-            with torch.no_grad():
-                self.alpha1[non_masked_alpha1_idx] = F.softmax(self.alpha1[non_masked_alpha1_idx], dim=0)
-                self.alpha2[non_masked_alpha2_idx] = F.softmax(self.alpha2[non_masked_alpha2_idx], dim=0)
+
+            self.softalpha1 = torch.clone(self.alpha1)
+            self.softalpha2 = torch.clone(self.alpha2)
+            # only compute non_masked alphas (remove masked 0s from softmax)
+            self.softalpha1[non_masked_alpha1_idx] = F.softmax(self.alpha1[non_masked_alpha1_idx], dim=0)
+            self.softalpha2[non_masked_alpha2_idx] = F.softmax(self.alpha2[non_masked_alpha2_idx], dim=0)
             #if (self.alpha1.size()[0] == 16):
             #    print(non_masked_alpha1_idx)
-            #    print(self.alpha1.flatten())
+            #    print(self.softalpha1.flatten())
 
-            self.conv1.weight.mul(self.alpha1)
-            self.conv2.weight.mul(self.alpha2)
+            self.conv1.weight.mul(self.softalpha1)
+            self.conv2.weight.mul(self.softalpha2)
         else:
+        # in normal training
             self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
             self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
         if 'Conv2d' in str(self.shortcut):

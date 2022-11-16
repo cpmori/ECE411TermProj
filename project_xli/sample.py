@@ -82,7 +82,8 @@ if __name__ == "__main__":
                 optimizer.step()
                 if i%100 == 0:
                     print(f'train epoch {epoch}. loss: {loss}. minloss: {min_train_loss}')
-                    print(resnet.test(sampled_net))
+                    pruning.check_net(sampled_net)
+                    #print(resnet.test(sampled_net))
         print(min_train_loss)
         pruning.update_net(sampled_net)
         optimizer.param_groups[0]['lr'] = 0.001

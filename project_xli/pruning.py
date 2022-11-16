@@ -107,24 +107,12 @@ def check_net(net):
     for name, module in net.named_modules():
         if 'layer' in name and '.' in name:
             if ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
-                print(dir(module))
-                print(getattr(module, 'alpha1').flatten())
-                print(getattr(module, 'alpha1_orig').flatten())
+                #print(dir(module))
+                print(getattr(module, 'alpha1').size())
+                print(torch.count_nonzero(getattr(module, 'alpha1')))
+                #print(getattr(module, 'alpha1_orig').size())
                 #check_layer(module, 'alpha1')
                 #check_layer(module, 'alpha2')
             elif 'conv' in name:
                 print(module, name)
                 print(module.weight.size()) # weight of the conv net
-def check_layer(module, name):
-    old_weights = torch.clone(getattr(module, name+"_orig"))
-    old_mask = torch.clone(getattr(module, name+'_mask'))
-    print(name)
-    # I dont think this is necessary? (layer is the same before and after)
-    
-    with torch.no_grad():
-        layer = getattr(module, name)
-        prev_layer = torch.clone(layer)
-        #print(layer.flatten())
-        prev_layer[old_mask.bool()] = old_weights[old_mask.bool()]
-        print(prev_layer.flatten())
-        #print(torch.equal(prev_layer, layer))

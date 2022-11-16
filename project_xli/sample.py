@@ -63,10 +63,11 @@ if __name__ == "__main__":
                         weight_decay=.0005)
         # train sample
         net_loss = 0
-        min_train_loss = 1  # used to sample best conv filters
-        min_conv_filter_net = sampled_net.state_dict() # saved network with best conv filters (place holder)
+
         #  
         for epoch in range(Train_Epochs):
+            min_train_loss = 1  # used to sample best conv filters
+            min_conv_filter_net = sampled_net.state_dict() # saved network with best conv filters (place holder)
             for i, data in enumerate(trainloader,0):
                 inputs, labels = data
                 if torch.cuda.is_available():
@@ -76,14 +77,17 @@ if __name__ == "__main__":
                 outputs = sampled_net(inputs)
                 loss = criterion(outputs, labels)
                 if (loss < min_train_loss):
+                    print(f'minloss at batch:{i}. minloss:{loss}')
                     min_train_loss = loss
                     min_conv_filter_net = sampled_net.state_dict()
-                loss.backward()
-                optimizer.step()
+                
                 if i%100 == 0:
-                    print(f'train epoch {epoch}. loss: {loss}. minloss: {min_train_loss}')
-                    pruning.check_net(sampled_net)
+                    print(f'train batch {i}. loss: {loss}. minloss: {min_train_loss}')
+                    #pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
+            print(f'train epoch {epoch}. minloss: {min_train_loss}')
+            min_train_loss.backward()
+            optimizer.step()
         print(min_train_loss)
         pruning.update_net(sampled_net)
         optimizer.param_groups[0]['lr'] = 0.001

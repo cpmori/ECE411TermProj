@@ -8,9 +8,15 @@ import torchvision
 import torchvision.transforms as transforms
 import copy 
 
-Train_Epochs = 30
-Valid_Epochs = 40
-Num_SubNets = 5
+Train_Epochs = 40
+Valid_Epochs = 5
+Num_SubNets = 30
+
+def changeConvFilter(target_net:nn.Module, sampled_net:nn.Module):
+    with torch.no_grad():
+        for name, param in target_net.named_parameters():
+            print(name)
+            print(target_net.get_parameter(name))
 
 if __name__ == "__main__":
     batch_size = 128
@@ -37,16 +43,22 @@ if __name__ == "__main__":
 
     #resnet.test(target_net)
     for subnet_count in range(Num_SubNets):
+        if subnet_count > 20:
+            Train_Epochs = 30
+            learnrate = 0.01
+        else:
+            Train_Epochs = 40
+            learnrate = 0.05
         print(f"sampled net{subnet_count}")
         sampled_net = copy.deepcopy(target_net).cuda()
         pruning.prune_net(sampled_net, thres_net)
-        pruning.update_net(sampled_net)
+        #pruning.update_net(sampled_net)
         #resnet.test(sampled_net)
         
         criterion = nn.CrossEntropyLoss().cuda()
 # SGD
         optimizer = optim.SGD(sampled_net.parameters(),
-                        lr = .05,
+                        lr = learnrate,
                         momentum=.9,
                         weight_decay=.0005)
         # train sample
@@ -69,8 +81,11 @@ if __name__ == "__main__":
                 loss.backward()
                 optimizer.step()
                 if i%100 == 0:
-                    print(f'train epoch {epoch}. loss: {loss}')
+                    print(f'train epoch {epoch}. loss: {loss}. minloss: {min_train_loss}')
+                    print(resnet.test(sampled_net))
         print(min_train_loss)
+        pruning.update_net(sampled_net)
+        optimizer.param_groups[0]['lr'] = 0.001
         min_valid_loss = 0 # used to sample best alpha terms
         min_alpha_net = sampled_net.state_dict() # saved network with best alpha terms (place holder)
         for epoch in range(Valid_Epochs):

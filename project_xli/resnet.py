@@ -174,20 +174,20 @@ def test(net:nn.Module):
     total_params = 0
 
     for x in filter(lambda p: p.requires_grad, net.parameters()):
-        total_params += np.prod(x.data.numpy().shape)
+        total_params += np.prod(torch.clone(x).cpu().data.numpy().shape)
     print("Total number of params", total_params)
     #print(net)
     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
 
     for name, param in net.named_parameters():
-        print(name)
         if 'alpha' in name:
             print(name, param.flatten())
         #if 'conv' in name:
-        #    print(name, param.size())
+        #    print(name, param.flatten())
         #if 'alpha' in name:
         #    print(name, param.size())
-
+    #for name, module in net.named_modules():
+    #    print(list(module.named_buffers()))
 
 
 if __name__ == "__main__":
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     for name, param in net.named_parameters():
         if 'conv' in name:
             print(name, param.size())
-            all_filters.append(param)
+            print(net[name])
         if 'alpha' in name:
             print(name, param.size())
     for name, module in net.named_modules():

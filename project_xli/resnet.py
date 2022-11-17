@@ -55,10 +55,10 @@ class TargetBlock(nn.Module):
 
     def __init__(self, in_planes, planes, stride=1, option='A'):
         super(TargetBlock, self).__init__()
-        self.alpha1 = nn.Parameter(torch.ones([planes,1,1,1], requires_grad=True))
+        self.alpha1 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.alpha2 = nn.Parameter(torch.ones([planes,1,1,1], requires_grad=True))
+        self.alpha2 = nn.Parameter(torch.rand([planes,1,1,1], requires_grad=True))
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
 
@@ -78,7 +78,7 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        sampling = True
+        sampling = False
         # in sampling
         # softalpha: p_hat
         # alpha: p

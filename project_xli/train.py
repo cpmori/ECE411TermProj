@@ -101,11 +101,11 @@ for epoch in range(Coarse_Epoch):
         train_correct += (predicted == labels.flatten()).sum().item()
         if i%100 == 0:
             print('batch: ',i,' loss: ',loss.data.item(), ' alpha regu: ',coarse_loss_regu.item())
-            print(net.get_parameter("layer1.0.alpha1").flatten())
-            print(F.softmax(net.get_parameter("layer1.0.alpha1").clone().flatten(),dim=0))
+            #print(net.get_parameter("layer1.0.alpha1").flatten())
+            #print(F.softmax(net.get_parameter("layer1.0.alpha1").clone().flatten(),dim=0))
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
-    torch.save(net.state_dict(),'./saved_models/coarse.pth')
+    torch.save(net.state_dict(),'./saved_models/coarse20_randAlpha.pth')
 
     # validation
     valid_total = 0
@@ -130,7 +130,7 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
-torch.save(net.state_dict(),'./saved_models/coarse.pth')
+torch.save(net.state_dict(),'./saved_models/coarse20_randAlpha.pth')
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)

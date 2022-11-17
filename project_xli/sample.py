@@ -25,7 +25,7 @@ if __name__ == "__main__":
         transforms.RandomCrop(32, 4),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
+    dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
     train_size = int(.8 * len(dataset))
     valid_size = len(dataset) - train_size
@@ -37,12 +37,13 @@ if __name__ == "__main__":
     
     
     target_net = resnet.resnet20()
-    target_net.load_state_dict(torch.load('./saved_models/coarse.pth'))
+    target_net.load_state_dict(torch.load('./saved_models/coarse20_randAlpha.pth'))
     thres_net = tnet.ThresNet().cuda()
     print(type(target_net))
 
     #resnet.test(target_net)
     for subnet_count in range(Num_SubNets):
+        print("-----------New SubNet------------")
         if subnet_count > 20:
             Train_Epochs = 30
             learnrate = 0.01
@@ -51,12 +52,13 @@ if __name__ == "__main__":
             learnrate = 0.05
         print(f"sampled net{subnet_count}")
         sampled_net = copy.deepcopy(target_net).cuda()
-        pruning.prune_net(sampled_net, thres_net)
+        log_probs = pruning.prune_net(sampled_net, thres_net)
+        print(len(log_probs))
         #pruning.update_net(sampled_net)
         #resnet.test(sampled_net)
         
         criterion = nn.CrossEntropyLoss().cuda()
-# SGD
+        # SGD
         optimizer = optim.SGD(sampled_net.parameters(),
                         lr = learnrate,
                         momentum=.9,
@@ -64,7 +66,7 @@ if __name__ == "__main__":
         # train sample
         net_loss = 0
 
-        #  
+        #  TRAIN LOOP
         for epoch in range(Train_Epochs):
             min_train_loss = 1  # used to sample best conv filters
             min_conv_filter_net = sampled_net.state_dict() # saved network with best conv filters (place holder)
@@ -77,25 +79,54 @@ if __name__ == "__main__":
                 outputs = sampled_net(inputs)
                 loss = criterion(outputs, labels)
                 if (loss < min_train_loss):
-                    print(f'minloss at batch:{i}. minloss:{loss}')
+                    print(f'\t\tminloss at batch:{i}. minloss:{loss:.3f}')
                     min_train_loss = loss
                     min_conv_filter_net = sampled_net.state_dict()
                 
                 if i%100 == 0:
-                    print(f'train batch {i}. loss: {loss}. minloss: {min_train_loss}')
+                    print(f'\ttrain batch {i}. loss: {loss:.3f}. minloss: {min_train_loss:.3f}')
                     #pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
-            print(f'train epoch {epoch}. minloss: {min_train_loss}')
+            print(f'train epoch {epoch}. minloss: {min_train_loss:.3f}')
             min_train_loss.backward()
             optimizer.step()
-        print(min_train_loss)
-        pruning.update_net(sampled_net)
+        print("---------end of training sampled net---------")
+
+        #pruning.update_net(sampled_net)
+
+
+        # VALID LOOP
         optimizer.param_groups[0]['lr'] = 0.001
-        min_valid_loss = 0 # used to sample best alpha terms
-        min_alpha_net = sampled_net.state_dict() # saved network with best alpha terms (place holder)
         for epoch in range(Valid_Epochs):
-            print('valid epoch')
-            break
+            min_valid_loss = 1  # used to sample best conv filters
+            min_alpha_net = sampled_net.state_dict() # saved network with best conv filters (place holder)
+            for i, data in enumerate(validloader,0):
+                inputs, labels = data
+                if torch.cuda.is_available():
+                    inputs = inputs.cuda()
+                    labels = labels.cuda()
+                optimizer.zero_grad()
+                outputs = sampled_net(inputs)
+                loss = criterion(outputs, labels)
+                if (loss < min_valid_loss):
+                    print(f'\t\tminloss at batch:{i}. minloss:{loss}')
+                    min_valid_loss = loss
+                    min_alpha_net = sampled_net.state_dict()
+                
+                if i%100 == 0:
+                    print(f'\tvalid batch {i}. loss: {loss}. minloss: {min_valid_loss}')
+                    #pruning.check_net(sampled_net)
+                    #print(resnet.test(sampled_net))
+            print(f'valid epoch {epoch}. minloss: {min_valid_loss}')
+            min_valid_loss.backward()
+            optimizer.step()
+        print("---------end of validation sampled net---------")
+        
+
+        # update thresnet
+
+
+        # update targetnet
         
         #resnet.test(sampled_net)
         

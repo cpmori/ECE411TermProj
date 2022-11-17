@@ -38,20 +38,26 @@ class ConstantPrune(prune.BasePruningMethod):
 # adaptive thres selection via thresnet
 class PaperPrune(prune.BasePruningMethod):
     PRUNING_TYPE = "unstructured"
-    def __init__(self, thresnet, thres_array):
+    def __init__(self, thresnet, thres_array, log_prob):
         self.thresnet : tnet.ThresNet = thresnet
         self.thres_array = thres_array
-        self.log_prob = torch.Tensor()
+        self.log_prob = log_prob
 
     def compute_mask(self, alphas, default_mask):
-        # log(log(uniform)) noise
-        noise_alpha = alphas - torch.log(-torch.log(torch.rand(alphas.size()))).cuda()
-        # uniform noise
-        #noise_alpha = alpha - torch.log(-torch.log(torch.rand(alpha.size())))
+        # log(log(uniform)) noise (c approx to 1/4 to 1/6 of alpha size)
+        #noise_alpha = alphas - torch.log(-torch.log(torch.rand(alphas.size()))).cuda()
+        
+        # log uniform noise (similar to loglog)
+        #noise_alpha = alphas - torch.log(torch.rand(alphas.size())).cuda()
+        
+        # uniform noise (c approx to half of alpha size)
+        noise_alpha = alphas - torch.rand(alphas.size()).cuda()
+
         noise_alpha = F.softmax(noise_alpha, dim=0)
         c = 1
         thresh_select, log_prob = tnet.get_threshold(self.thresnet, alphas)
-        self.log_prob = log_prob
+        self.log_prob.append(log_prob)
+        #print(len(self.log_prob))
         thresh = self.thres_array[thresh_select]
 
         sum_of_noise_alpha = 0
@@ -65,19 +71,25 @@ class PaperPrune(prune.BasePruningMethod):
         return mask
 
     def get_thresnet_returns(self):
+        print(self.log_prob)
         return self.log_prob
+    def clear_thresnet(self):
+        self.log_prob = []
 
-def prune_layer(module, name, thresnet):
+def prune_layer(module, name, thresnet, pruner:PaperPrune):
     #ConstantPrune.apply(module, name, 0.7)
-    PaperPrune.apply(module, name, thresnet, [0.5,0.6,0.7,0.8,0.9])
+    pruner.apply(module, name, pruner.thresnet, pruner.thres_array, pruner.log_prob)
 
 def prune_net(net, thresnet):
+    log_prob = []
+    pruner = PaperPrune(thresnet, [0.6,0.65,0.7,0.75,0.8], log_prob)
     for name, module in net.named_modules():
         if 'layer' in name and '.' in name and ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
             #print('----------')
             #print(name)
-            prune_layer(module, 'alpha1',thresnet)
-            prune_layer(module, 'alpha2',thresnet)
+            prune_layer(module, 'alpha1',thresnet, pruner)
+            prune_layer(module, 'alpha2',thresnet, pruner)
+    return log_prob
             
 def update_layer(module, name):
     print(module, name)
@@ -108,9 +120,9 @@ def check_net(net):
         if 'layer' in name and '.' in name:
             if ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
                 #print(dir(module))
-                print(getattr(module, 'alpha1').size())
+                print(getattr(module, 'alpha1').flatten())
                 print(torch.count_nonzero(getattr(module, 'alpha1')))
-                #print(getattr(module, 'alpha1_orig').size())
+                print(getattr(module, 'alpha1_orig').flatten())
                 #check_layer(module, 'alpha1')
                 #check_layer(module, 'alpha2')
             elif 'conv' in name:

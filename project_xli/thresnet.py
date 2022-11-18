@@ -69,10 +69,20 @@ def update_policy(optimizer:torch.optim.RMSprop, rewards, probs):
 def calc_episode_reward(subnet, losses, hyperparam = 2):
     print(f'Calculating Thresnet Episode Reward. losses{losses}')
     import numpy as np
-    l_avg = torch.mean(losses)
+    l_avg = np.mean(losses)
+    print(l_avg)
     param_count = 0
+    for name, param in subnet.named_parameters():
+        print(name)
+        print(np.prod(list(param.size())))
+        print(torch.count_nonzero(param))
+        #print(np.prod(list(x.size())))
+        #print(torch.count_nonzero(x))
     for x in filter(lambda p: p.requires_grad, subnet.parameters()):
-        param_count += np.prod(x.data.numpy().shape)
+        #print(x.size())
+        #print(np.prod(list(x.size())))
+        #print(torch.count_nonzero(x))
+        param_count += np.prod(x.data.cpu().numpy().shape)
     print(f'Param count: {param_count}')
     reward = -(l_avg + hyperparam * param_count)
     return reward

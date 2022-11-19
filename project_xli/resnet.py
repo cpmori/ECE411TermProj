@@ -78,7 +78,7 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        sampling = False
+        sampling = True
         # in sampling
         # softalpha: p_hat
         # alpha: p
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     for name, param in net.named_parameters():
         if 'conv' in name:
             print(name, param.size())
-            print(net[name])
+            #print(net[name])
         if 'alpha' in name:
             print(name, param.size())
     for name, module in net.named_modules():

@@ -34,6 +34,7 @@ class ThresNet(nn.Module):
     def forward(self, x):
         x = x.flatten()
         #print(x.size())
+        print(x.size())
         if x.size()[0] == 16:
             #print(x.size()[0])
             out = F.relu(self.in16_1(x))
@@ -44,6 +45,7 @@ class ThresNet(nn.Module):
             out = F.relu(self.in32_1(x))
             out = F.relu(self.in32_2(out))
         else:
+            
             out = F.relu(self.in64(x))
         out = F.relu(self.shrink1(out))
         out = F.relu(self.shrink2(out))
@@ -66,25 +68,33 @@ def update_policy(optimizer:torch.optim.RMSprop, rewards, probs):
     optimizer.step()
     return
 
-def calc_episode_reward(subnet, losses, hyperparam = 2):
-    print(f'Calculating Thresnet Episode Reward. losses{losses}')
+def calc_episode_reward(subnet:nn.Module, losses, hyperparam = 2):
     import numpy as np
     l_avg = np.mean(losses)
-    print(l_avg)
+    print(f'Calculating Thresnet Episode Reward. # of losses: {len(losses)} avg: {l_avg}')
     param_count = 0
-    for name, param in subnet.named_parameters():
-        print(name)
-        print(np.prod(list(param.size())))
-        print(torch.count_nonzero(param))
-        #print(np.prod(list(x.size())))
-        #print(torch.count_nonzero(x))
+    reduced_count = 0
+    for name, param in subnet.named_modules():
+        if "alpha1" in list(dir(param)) or "alpha2" in list(dir(param)):
+            conv1_size = param.conv1.weight.size()
+            conv2_size = param.conv2.weight.size()
+            # # of params in each filter of the corresponding alpha
+            filter1_params = np.prod(list(conv1_size)[1:])
+            filter2_params = np.prod(list(conv2_size)[1:])
+            # # of zero alphas
+            num_zeros1 = conv1_size[0] - torch.count_nonzero(param.alpha1)
+            num_zeros2 = conv2_size[0] - torch.count_nonzero(param.alpha2)
+            # # of params zeroed out
+            reduced_count += num_zeros1 * filter1_params
+            reduced_count += num_zeros2 * filter2_params
+    # total params in the network
     for x in filter(lambda p: p.requires_grad, subnet.parameters()):
-        #print(x.size())
-        #print(np.prod(list(x.size())))
-        #print(torch.count_nonzero(x))
         param_count += np.prod(x.data.cpu().numpy().shape)
-    print(f'Param count: {param_count}')
-    reward = -(l_avg + hyperparam * param_count)
+    # theoretical params
+    pruned_param_count = param_count - reduced_count
+    print(f'Original count: {param_count}, Reduced count: {pruned_param_count}, % Reduced: {pruned_param_count/param_count}')
+    reward = -(l_avg + hyperparam * pruned_param_count)
+    print(f'Reward: {reward}')
     return reward
 
 def model_info(net:nn.Module):

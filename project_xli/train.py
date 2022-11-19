@@ -60,7 +60,7 @@ criterion = nn.CrossEntropyLoss().cuda()
 optimizer = optim.SGD(net.parameters(),
                         lr = .1,
                         momentum=.9,
-                        weight_decay=.0005)
+                        weight_decay=.00005)
 # cosine scheduler for lr
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Coarse_Epoch)
 print(optimizer)
@@ -105,7 +105,7 @@ for epoch in range(Coarse_Epoch):
             #print(F.softmax(net.get_parameter("layer1.0.alpha1").clone().flatten(),dim=0))
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
-    torch.save(net.state_dict(),'./saved_models/coarse20_randAlpha.pth')
+    torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
 
     # validation
     valid_total = 0
@@ -130,7 +130,7 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
-torch.save(net.state_dict(),'./saved_models/coarse20_randAlpha.pth')
+torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)

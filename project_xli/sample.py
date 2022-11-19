@@ -8,8 +8,7 @@ import torchvision
 import torchvision.transforms as transforms
 import copy 
 import numpy as np
-Train_Epochs = 40
-Valid_Epochs = 5
+import matplotlib.pyplot as plt
 Num_SubNets = 30
 
 def changeConvFilter(target_net:nn.Module, sampled_net:nn.Module):
@@ -25,7 +24,7 @@ if __name__ == "__main__":
         transforms.RandomCrop(32, 4),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    dataset = torchvision.datasets.CIFAR10(root='/home/xing/Classes/ECE411/data', train=True,
+    dataset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=True,
                                         download=True, transform=transform)
     train_size = int(.8 * len(dataset))
     valid_size = len(dataset) - train_size
@@ -37,21 +36,28 @@ if __name__ == "__main__":
     
     
     target_net = resnet.resnet20()
-    target_net.load_state_dict(torch.load('./saved_models/coarse20_randAlpha.pth'))
+    target_net.load_state_dict(torch.load('./saved_models/coarse20_origLR.pth'))
     thres_net = tnet.ThresNet().cuda()
     print(type(target_net))
 
+    # test variables
     #resnet.test(target_net)
+    Train_Loss_History = []
+
+
+    # start sampling
     for subnet_count in range(Num_SubNets):
         print("-----------New SubNet------------")
         if subnet_count > 20:
             Train_Epochs = 30
+            Valid_Epochs = 5
             learnrate = 0.01
         else:
             Train_Epochs = 40
+            Valid_Epochs = 5
             learnrate = 0.05
         print(f"sampled net{subnet_count}")
-        sampled_net = target_net.cuda()
+        sampled_net = copy.deepcopy(target_net).cuda()
         log_probs = pruning.prune_net(sampled_net, thres_net)
         print(len(log_probs))
         sum_log_prob = 0
@@ -89,18 +95,20 @@ if __name__ == "__main__":
                     min_train_loss = loss
                     min_conv_filter_net = sampled_net.state_dict()
                     #print(len(net_loss), net_loss[i], np.mean(net_loss))
-                    tnet.calc_episode_reward(sampled_net,net_loss)
-                if i%100 == 0:
-                    print(f'\ttrain batch {i}. loss: {loss:.3f}. minloss: {min_train_loss:.3f}')
+                #if i%100 == 0:
+                #    print(f'\ttrain batch {i}. loss: {loss:.3f}. minloss: {min_train_loss:.3f}')
                     #pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
             print(f'train epoch {epoch}. minloss: {min_train_loss:.3f}')
             min_train_loss.backward()
             optimizer.step()
+            Train_Loss_History.append(min_train_loss.item())
         print("---------end of training sampled net---------")
 
         #pruning.update_net(sampled_net)
-
+        plt.plot(Train_Loss_History)
+        plt.legend([learnrate])
+        plt.show()
 
         # VALID LOOP
         optimizer.param_groups[0]['lr'] = 0.001
@@ -121,8 +129,8 @@ if __name__ == "__main__":
                     min_valid_loss = loss
                     min_alpha_net = sampled_net.state_dict()
                 
-                if i%100 == 0:
-                    print(f'\tvalid batch {i}. loss: {loss}. minloss: {min_valid_loss}')
+                #if i%100 == 0:
+                #    print(f'\tvalid batch {i}. loss: {loss}. minloss: {min_valid_loss}')
                     #pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
             print(f'valid epoch {epoch}. minloss: {min_valid_loss}')

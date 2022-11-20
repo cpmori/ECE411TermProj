@@ -35,7 +35,7 @@ import numpy as np
 __all__ = ['resnet20']
 def _weights_init(m):
     classname = m.__class__.__name__
-    #print(classname)
+    print(classname)
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight)
 
@@ -73,11 +73,10 @@ class BasicBlock(nn.Module):
                 )
         self.layer_weights1 = torch.from_numpy(np.random.uniform(0,1,size=in_planes))
         self.layer_weights1 = F.softmax(self.layer_weights1, dim = 0)
-        #print(self.layer_weights1, self.layer_weights1.size())
-        #print(self.layer_weights1.size())
+        print("LAYER WEIGHTS 1:",self.layer_weights1, self.layer_weights1.size())
         self.layer_weights2 = torch.from_numpy(np.random.uniform(0,1,size=planes))
         self.layer_weights2 = F.softmax(self.layer_weights2, dim = 0)
-        #print(self.layer_weights2, self.layer_weights2.size())
+        print("LAYER WEIGHTS 2:",self.layer_weights2, self.layer_weights2.size())
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -152,29 +151,3 @@ def resnet1202():
     return ResNet(BasicBlock, [200, 200, 200])
 
 
-def test(net):
-    import numpy as np
-    total_params = 0
-
-    for x in filter(lambda p: p.requires_grad, net.parameters()):
-        total_params += np.prod(x.data.numpy().shape)
-    print("Total number of params", total_params)
-    #print(net)
-    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
-
-""" 
-if __name__ == "__main__":
-    for net_name in __all__:
-        if net_name.startswith('resnet'):
-            current_net = globals()[net_name]()
-            print(net_name)
-            test(current_net)
-            for name, param in current_net.named_parameters():
-                print(name,'\t', param.size())
-                #print(current_net.get_parameter(name))
-            for layer, module in current_net.named_children():
-                for layer_2, module_2 in module.named_children():
-                    print(layer_2,':::\n', list(module_2.named_children()))
-                print(layer,'::\n', len(list(module.named_children())))
-            print()
- """

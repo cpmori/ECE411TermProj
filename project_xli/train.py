@@ -20,7 +20,7 @@ def alphaL2(net: nn.Module):
 
     return torch.sqrt(sumofAlphaSquared)
 
-
+SAVE_MODEL = False
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
      transforms.RandomCrop(32, 4),
@@ -105,7 +105,8 @@ for epoch in range(Coarse_Epoch):
             #print(F.softmax(net.get_parameter("layer1.0.alpha1").clone().flatten(),dim=0))
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
-    torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
+    if SAVE_MODEL:
+        torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
 
     # validation
     valid_total = 0
@@ -130,7 +131,8 @@ for epoch in range(Coarse_Epoch):
 
     scheduler.step()
     #print(optimizer)
-torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
+if SAVE_MODEL:
+    torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)

@@ -78,7 +78,7 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        sampling = True
+        sampling = False
         # in sampling
         # softalpha: p_hat
         # alpha: p
@@ -94,17 +94,28 @@ class TargetBlock(nn.Module):
             #if (self.alpha1.size()[0] == 16):
             #    print(non_masked_alpha1_idx)
             #    print(self.softalpha1.flatten())
-
-            self.conv1.weight.mul(self.softalpha1)
-            self.conv2.weight.mul(self.softalpha2)
+            #    print(self.conv1.weight.size())
+            #    print(torch.nonzero(self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))).size())
+            #    print(torch.nonzero(self.conv1.weight.mul(self.softalpha1)).size())
+            #    print(F.softmax(self.alpha1, dim=0).flatten())
+            out = F.conv2d(x,self.conv1.weight.mul(self.softalpha1),\
+                stride=self.conv1.stride, padding=self.conv1.padding)
+            out = F.relu(self.bn1(out))
+            out = F.conv2d(out,self.conv2.weight.mul(self.softalpha2),\
+                stride=self.conv2.stride, padding=self.conv2.padding)
+            #if (self.alpha1.size()[0] == 16):          # check if parameters are truly zeroed out
+            #    print(torch.nonzero(out).size())
         else:
         # in normal training
-            self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))
-            self.conv2.weight.mul(F.softmax(self.alpha2, dim=0))
-        if 'Conv2d' in str(self.shortcut):
-            self.shortcut[0].weight.mul(F.softmax(self.alpha_sc, dim=0))
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
+            #print(self.alpha1.size(), self.conv1.weight.size(), x.size())
+            out = F.conv2d(x,self.conv1.weight.mul(F.softmax(self.alpha1, dim=0)),\
+                stride=self.conv1.stride, padding=self.conv1.padding)
+            out = F.relu(self.bn1(out))
+            out = F.conv2d(out,self.conv2.weight.mul(F.softmax(self.alpha2, dim=0)),\
+                stride=self.conv2.stride, padding=self.conv2.padding)
+            #if (self.alpha1.size()[0] == 16):          # count for unpruned resnet
+            #    print(torch.nonzero(out).size())
+        out = self.bn2(out)
         out += self.shortcut(x)
         out = F.relu(out)
         return out

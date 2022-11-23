@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
         #  TRAIN LOOP
         for epoch in range(Train_Epochs):
-            min_train_loss = 1  # used to sample best conv filters
+            min_train_loss = 10000  # used to sample best conv filters
             min_conv_filter_net = sampled_net.state_dict() # saved network with best conv filters (place holder)
             for i, data in enumerate(trainloader,0):
                 inputs, labels = data
@@ -89,6 +89,7 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 outputs = sampled_net(inputs)
                 loss = criterion(outputs, labels)
+                #print(loss)
                 net_loss.append(loss.item())
                 if (loss < min_train_loss):
                     print(f'\t\tminloss at batch:{i}. minloss:{loss:.3f}')
@@ -104,7 +105,7 @@ if __name__ == "__main__":
             optimizer.step()
             Train_Loss_History.append(min_train_loss.item())
         print("---------end of training sampled net---------")
-
+        pruning.check_net(sampled_net)
         #pruning.update_net(sampled_net)
         plt.plot(Train_Loss_History)
         plt.legend([learnrate])

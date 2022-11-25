@@ -20,7 +20,9 @@ def alphaL2(net: nn.Module):
 
     return torch.sqrt(sumofAlphaSquared)
 
-SAVE_MODEL = False
+SAVE_MODEL = True
+saved_path = './saved_models/coarse20_orig0005.pth'
+
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
      transforms.RandomCrop(32, 4),
@@ -60,7 +62,7 @@ criterion = nn.CrossEntropyLoss().cuda()
 optimizer = optim.SGD(net.parameters(),
                         lr = .1,
                         momentum=.9,
-                        weight_decay=.00005)
+                        weight_decay=.0005)
 # cosine scheduler for lr
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Coarse_Epoch)
 print(optimizer)
@@ -106,7 +108,7 @@ for epoch in range(Coarse_Epoch):
     print("training: ", train_total, train_correct, train_correct/train_total)
     train_acc.append(train_correct/train_total)
     if SAVE_MODEL:
-        torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
+        torch.save(net.state_dict(),saved_path)
 
     # validation
     valid_total = 0
@@ -132,7 +134,7 @@ for epoch in range(Coarse_Epoch):
     scheduler.step()
     #print(optimizer)
 if SAVE_MODEL:
-    torch.save(net.state_dict(),'./saved_models/coarse20_origLR.pth')
+    torch.save(net.state_dict(),saved_path)
 plt.figure()
 plt.plot(iteration, train_acc)
 plt.plot(iteration, valid_acc)

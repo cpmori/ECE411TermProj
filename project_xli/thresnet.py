@@ -32,21 +32,21 @@ class ThresNet(nn.Module):
         self.apply(_weights_init)
         
     def forward(self, x):
-        x = x.flatten()
+        out = x.flatten().clone() # idk why clone is needed but it breaks without
         #print(x.size())
-        print(x.size())
+        #print(x.size())
         if x.size()[0] == 16:
             #print(x.size()[0])
-            out = F.relu(self.in16_1(x))
+            out = F.relu(self.in16_1(out))
             out = F.relu(self.in16_2(out))
             out = F.relu(self.in16_3(out))
         elif x.size()[0] == 32:
             #print(x.size()[0])
-            out = F.relu(self.in32_1(x))
+            out = F.relu(self.in32_1(out))
             out = F.relu(self.in32_2(out))
         else:
             
-            out = F.relu(self.in64(x))
+            out = F.relu(self.in64(out))
         out = F.relu(self.shrink1(out))
         out = F.relu(self.shrink2(out))
         out = F.softmax(self.shrink3(out),dim=0)
@@ -60,10 +60,11 @@ def get_threshold(net, alpha):
     log_prob = m.log_prob(selection)
     return selection, log_prob
 
-def update_policy(optimizer:torch.optim.RMSprop, rewards, probs):
-    print(f'Updating Thresnet Policy. R:{rewards}. log_prob{probs}')
+def update_policy(optimizer:torch.optim.Adam, rewards, probs):
+    print(f'Updating Thresnet Policy. R:{rewards}. log_prob{torch.sum(torch.stack(probs,dim=0))}')
     optimizer.zero_grad()
-    loss = torch.mean(rewards * torch.sum(probs))
+    loss = torch.mean(rewards * torch.sum(torch.stack(probs,dim=0)))
+    print(f'ThresNet Loss: {loss}')
     loss.backward()
     optimizer.step()
     return
@@ -94,6 +95,7 @@ def calc_episode_reward(subnet:nn.Module, losses, hyperparam = 2):
     pruned_param_count = param_count - reduced_count
     print(f'Original count: {param_count}, Reduced count: {pruned_param_count}, % Reduced: {pruned_param_count/param_count}')
     reward = -(l_avg + hyperparam * pruned_param_count)
+    reward = -(l_avg + hyperparam * pruned_param_count/param_count)
     print(f'Reward: {reward}')
     return reward
 

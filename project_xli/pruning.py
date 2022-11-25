@@ -120,11 +120,19 @@ def check_net(net):
         if 'layer' in name and '.' in name:
             if ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
                 #print(dir(module))
-                print(getattr(module, 'alpha1').flatten())
-                print(torch.count_nonzero(getattr(module, 'alpha1')))
-                print(getattr(module, 'alpha1_orig').flatten())
+                if 'layer1.0' in name:
+                    print(name)
+                    #print(getattr(module, 'alpha1_orig').flatten())
+                    #w = getattr(module, 'alpha1').flatten().clone()
+                    #print(w)
+                    #non_masked_alpha1_idx = torch.nonzero(w)
+                    #w[non_masked_alpha1_idx]=F.softmax(w[non_masked_alpha1_idx], dim=0)
+                    #print(w)
+                #print(getattr(module, 'alpha1').flatten())
+                #print(torch.count_nonzero(getattr(module, 'alpha1')))
+                #print(getattr(module, 'alpha1_orig').flatten())
                 #check_layer(module, 'alpha1')
                 #check_layer(module, 'alpha2')
-            elif 'conv' in name:
-                print(module, name)
-                print(module.weight.size()) # weight of the conv net
+            #elif 'conv' in name:
+            #    print(module, name)
+            #    print(module.weight.size()) # weight of the conv net

@@ -78,14 +78,14 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        sampling = False
+        Prune = True
         # in sampling
         # softalpha: p_hat
         # alpha: p
-        if sampling is True:
+        if Prune is True:
             non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
             non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
-
+            
             self.softalpha1 = torch.clone(self.alpha1)
             self.softalpha2 = torch.clone(self.alpha2)
             # only compute non_masked alphas (remove masked 0s from softmax)
@@ -104,7 +104,8 @@ class TargetBlock(nn.Module):
             out = F.conv2d(out,self.conv2.weight.mul(self.softalpha2),\
                 stride=self.conv2.stride, padding=self.conv2.padding)
             #if (self.alpha1.size()[0] == 16):          # check if parameters are truly zeroed out
-            #    print(torch.nonzero(out).size())
+                #print(torch.nonzero(out).size())
+            #    print(len(self.alpha1),len(non_masked_alpha1_idx))
         else:
         # in normal training
             #print(self.alpha1.size(), self.conv1.weight.size(), x.size())

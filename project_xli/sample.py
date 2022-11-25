@@ -174,10 +174,10 @@ if __name__ == "__main__":
         rewards.append(reward.item())
 
         # update targetnet
-        resnet.test(target_net)
+        #resnet.test(target_net)
         changeConv(target_net, min_conv_filter_net)
         changeAlpha(target_net, min_alpha_net)
-        resnet.test(target_net)
+        #resnet.test(target_net)
 
         #resnet.test(sampled_net)
     plt.subplot(2,1,2)

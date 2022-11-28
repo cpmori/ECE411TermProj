@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import torch.nn.init as init
-
+import logging
 def _weights_init(m):
     classname = m.__class__.__name__
     #print(classname)
@@ -60,19 +60,21 @@ def get_threshold(net, alpha):
     log_prob = m.log_prob(selection)
     return selection, log_prob
 
-def update_policy(optimizer:torch.optim.Adam, rewards, probs):
-    print(f'Updating Thresnet Policy. R:{rewards}. log_prob{torch.sum(torch.stack(probs,dim=0))}')
+def update_policy(optimizer:torch.optim.Adam, rewards, probs, log_file):
+    logging.basicConfig(filename=log_file, level=logging.INFO)
+    logging.info(f'Updating Thresnet Policy. R:{rewards}. log_prob{torch.sum(torch.stack(probs,dim=0))}')
     optimizer.zero_grad()
     loss = torch.mean(rewards * torch.sum(torch.stack(probs,dim=0)))
-    print(f'ThresNet Loss: {loss}')
+    logging.info(f'ThresNet Loss: {loss}')
     loss.backward()
     optimizer.step()
     return
 
-def calc_episode_reward(subnet:nn.Module, losses, hyperparam = 2):
+def calc_episode_reward(subnet:nn.Module, losses, log_file, hyperparam = 2):
     import numpy as np
     l_avg = np.mean(losses)
-    print(f'Calculating Thresnet Episode Reward. # of losses: {len(losses)} avg: {l_avg}')
+    logging.basicConfig(filename=log_file, level=logging.INFO)
+    logging.info(f'Calculating Thresnet Episode Reward. # of losses: {len(losses)} avg: {l_avg}')
     param_count = 0
     reduced_count = 0
     for name, param in subnet.named_modules():
@@ -93,11 +95,11 @@ def calc_episode_reward(subnet:nn.Module, losses, hyperparam = 2):
         param_count += np.prod(x.data.cpu().numpy().shape)
     # theoretical params
     pruned_param_count = param_count - reduced_count
-    print(f'Original count: {param_count}, Reduced count: {pruned_param_count}, % Reduced: {pruned_param_count/param_count}')
-    reward = -(l_avg + hyperparam * pruned_param_count)
+    logging.info(f'Original count: {param_count}, After Prune count: {pruned_param_count}, % Reduced: {1-pruned_param_count/param_count}')
+    #reward = -(l_avg + hyperparam * pruned_param_count)
     reward = -(l_avg + hyperparam * pruned_param_count/param_count)
-    print(f'Reward: {reward}')
-    return reward
+    logging.info(f'Reward: {reward}')
+    return reward, pruned_param_count/param_count
 
 def model_info(net:nn.Module):
     #print(net)

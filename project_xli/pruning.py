@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import copy
+import numpy as np
 
 import thresnet as tnet
 import resnet
@@ -82,7 +83,7 @@ def prune_layer(module, name, thresnet, pruner:PaperPrune):
 
 def prune_net(net, thresnet):
     log_prob = []
-    pruner = PaperPrune(thresnet, [0.6,0.65,0.7,0.75,0.8], log_prob)
+    pruner = PaperPrune(thresnet, [0.55,0.6,0.65,0.7,0.75], log_prob)
     for name, module in net.named_modules():
         if 'layer' in name and '.' in name and ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
             #print('----------')
@@ -92,22 +93,22 @@ def prune_net(net, thresnet):
     return log_prob
             
 def update_layer(module, name):
-    print(module, name)
+    #print(module, name)
     old_weights = torch.clone(getattr(module, name+"_orig"))
     old_mask = torch.clone(getattr(module, name+'_mask'))
-    print(name)
+    #print(name)
     
     prune.remove(module, name)
 
     # I dont think this is necessary? (layer is the same before and after)
     
-    with torch.no_grad():
-        layer = getattr(module, name)
-        prev_layer = torch.clone(layer)
-        #print(layer.flatten())
-        layer[old_mask.bool()] = old_weights[old_mask.bool()]
-        print(layer.flatten())
-        print(torch.equal(prev_layer, layer))
+    #with torch.no_grad():
+    #    layer = getattr(module, name)
+    #    prev_layer = torch.clone(layer)
+    #    #print(layer.flatten())
+    #    layer[old_mask.bool()] = old_weights[old_mask.bool()]
+    #    print(layer.flatten())
+    #    print(torch.equal(prev_layer, layer))
 
 def update_net(net):
     for name, module in net.named_modules():
@@ -116,23 +117,18 @@ def update_net(net):
             update_layer(module, 'alpha2')
 
 def check_net(net):
-    for name, module in net.named_modules():
-        if 'layer' in name and '.' in name:
-            if ('conv' not in name and 'bn' not in name and 'shortcut' not in name):
-                #print(dir(module))
-                if 'layer1.0' in name:
-                    print(name)
-                    #print(getattr(module, 'alpha1_orig').flatten())
-                    #w = getattr(module, 'alpha1').flatten().clone()
-                    #print(w)
-                    #non_masked_alpha1_idx = torch.nonzero(w)
-                    #w[non_masked_alpha1_idx]=F.softmax(w[non_masked_alpha1_idx], dim=0)
-                    #print(w)
-                #print(getattr(module, 'alpha1').flatten())
-                #print(torch.count_nonzero(getattr(module, 'alpha1')))
-                #print(getattr(module, 'alpha1_orig').flatten())
-                #check_layer(module, 'alpha1')
-                #check_layer(module, 'alpha2')
-            #elif 'conv' in name:
-            #    print(module, name)
-            #    print(module.weight.size()) # weight of the conv net
+    reduced_count = 0
+    for name, param in net.named_modules():
+        if "alpha1" in list(dir(param)) or "alpha2" in list(dir(param)):
+            conv1_size = param.conv1.weight.size()
+            conv2_size = param.conv2.weight.size()
+            # # of params in each filter of the corresponding alpha
+            filter1_params = np.prod(list(conv1_size)[1:])
+            filter2_params = np.prod(list(conv2_size)[1:])
+            # # of zero alphas
+            num_zeros1 = conv1_size[0] - torch.count_nonzero(param.alpha1)
+            num_zeros2 = conv2_size[0] - torch.count_nonzero(param.alpha2)
+            # # of params zeroed out
+            reduced_count += num_zeros1 * filter1_params
+            reduced_count += num_zeros2 * filter2_params
+    print(reduced_count)

@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 
 import resnet
-
+import pruning
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
@@ -35,8 +35,9 @@ best_total = 0
 correct_predictions = {}
 all_predictions = {}
 
-net = resnet.resnet20().load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
-
+net = resnet.resnet20().cuda()
+net.load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
+pruning.check_net(net)
 for cls in classes:
     correct_predictions[cls] = 0
     all_predictions[cls] = 0

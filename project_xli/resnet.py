@@ -78,11 +78,11 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        Prune = True
+        Prune = 0
         # in sampling
         # softalpha: p_hat
         # alpha: p
-        if Prune is True:
+        if Prune == 1:
             non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
             non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
             
@@ -106,6 +106,28 @@ class TargetBlock(nn.Module):
             #if (self.alpha1.size()[0] == 16):          # check if parameters are truly zeroed out
                 #print(torch.nonzero(out).size())
             #    print(len(self.alpha1),len(non_masked_alpha1_idx))
+        elif Prune == 2:
+            non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
+            non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
+            
+            self.softalpha1 = torch.clone(self.alpha1)
+            self.softalpha2 = torch.clone(self.alpha2)
+            # only compute non_masked alphas (remove masked 0s from softmax)
+            self.softalpha1[non_masked_alpha1_idx] = F.softmax(self.alpha1, dim=0)[non_masked_alpha1_idx]
+            self.softalpha2[non_masked_alpha2_idx] = F.softmax(self.alpha2, dim=0)[non_masked_alpha2_idx]
+
+            #if (self.alpha1.size()[0] == 16):
+            #    print(non_masked_alpha1_idx)
+            #    print(self.softalpha1.flatten())
+            #    print(self.conv1.weight.size())
+            #    print(torch.nonzero(self.conv1.weight.mul(F.softmax(self.alpha1, dim=0))).size())
+            #    print(torch.nonzero(self.conv1.weight.mul(self.softalpha1)).size())
+            #    print(F.softmax(self.alpha1, dim=0).flatten())
+            out = F.conv2d(x,self.conv1.weight.mul(self.softalpha1),\
+                stride=self.conv1.stride, padding=self.conv1.padding)
+            out = F.relu(self.bn1(out))
+            out = F.conv2d(out,self.conv2.weight.mul(self.softalpha2),\
+                stride=self.conv2.stride, padding=self.conv2.padding)
         else:
         # in normal training
             #print(self.alpha1.size(), self.conv1.weight.size(), x.size())

@@ -43,7 +43,7 @@ def changeAlpha(target_net:nn.Module, alpha_net:OrderedDict):
 
 if __name__ == "__main__":
     torch.autograd.set_detect_anomaly(True)
-    log_file = "./log/sampling_log_orig0005.log"
+    log_file = "./log/sampling_noAlphaChange_2_orig0005.log"
     logging.basicConfig(filename=log_file, level=logging.INFO)
     
     batch_size = 128
@@ -122,6 +122,7 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 outputs = sampled_net(inputs)
                 loss = criterion(outputs, labels)
+                #loss.backward() #frequent update
                 #print(loss)
                 net_loss.append(loss.item())
                 if (loss < min_train_loss):
@@ -134,7 +135,7 @@ if __name__ == "__main__":
                 #    pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
             logging.info(f'train epoch {epoch}. minloss: {min_train_loss:.3f}')
-            min_train_loss.backward()
+            min_train_loss.backward()#frequent update
             #pruning.check_net(sampled_net)
             optimizer.step()
             Train_Loss_History.append(min_train_loss.item())
@@ -159,6 +160,7 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 outputs = sampled_net(inputs)
                 loss = criterion(outputs, labels)
+                #loss.backward() #frequent update
                 net_loss.append(loss.item())
                 if (loss < min_valid_loss):
                     #print(f'\t\tminloss at batch:{i}. minloss:{loss}')
@@ -170,7 +172,7 @@ if __name__ == "__main__":
                     #pruning.check_net(sampled_net)
                     #print(resnet.test(sampled_net))
             logging.info(f'valid epoch {epoch}. minloss: {min_valid_loss}')
-            min_valid_loss.backward()
+            min_valid_loss.backward()#frequent update
             optimizer.step()
         logging.info("---------end of validation sampled net---------")
 
@@ -188,8 +190,8 @@ if __name__ == "__main__":
         sample_net_end_time = time.time()
         logging.info(f'Time taken for net {subnet_count}: {sample_net_end_time-sample_net_start_time}')
         #resnet.test(sampled_net)
-    torch.save(target_net.state_dict(),'./saved_models/sampled20_log_orig0005.pth')
-    torch.save(thres_net.state_dict(),'./saved_models/thres20_log_orig0005.pth')
+    torch.save(target_net.state_dict(),'./saved_models/sampled20_noAlphaChange_2_orig0005.pth')
+    torch.save(thres_net.state_dict(),'./saved_models/thres20_noAlphaChange_2_orig0005.pth')
     logging.info('END of Sampling')
     sampling_end_time = time.time()
     logging.info(f'Time taken for sampling: {sampling_end_time-sampling_start_time}')

@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
+torch.manual_seed(0)
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
      transforms.RandomCrop(32, 4),
@@ -30,13 +31,26 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 correct = 0
 total = 0
-best_correct = 0
-best_total = 0
 correct_predictions = {}
 all_predictions = {}
 
 net = resnet.resnet20().cuda()
-net.load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
+# coarse train (change Prune = 0 in resnet.py)
+# 90.75% accuracy
+#net.load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
+
+# modified alpha equation (change Prune = 2 in resnet.py)
+# 42.2317% reduction, 89.03% accuracy
+#net.load_state_dict(torch.load('./saved_models/fine20_noAlphaChange_2_orig0005.pth'))
+
+# paper alpha equation (change Prune = 1 in resnet.py)
+# 46.2791% reduction, 88.31% accuracy
+#net.load_state_dict(torch.load('./saved_models/fine20_orig0005.pth'))
+
+# loss backward propagation every batch during sampling (Prune = 1)
+# 44.6282% reduction, 87.87% accuracy
+#net.load_state_dict(torch.load('./saved_models/fine20_freqUpdateWithAlpha_orig0005.pth'))
+
 pruning.check_net(net)
 for cls in classes:
     correct_predictions[cls] = 0
@@ -50,19 +64,16 @@ for i, data in enumerate(testloader, 0):
     _, predicted = torch.max(outputs.data, 1)
     total += labels.size(0)
     correct += (predicted == labels).sum().item()
-    best_total += labels.size(0)
-    best_correct += (predicted == labels.flatten()).sum().item()
     for i, cls in enumerate(labels.flatten()):
         all_predictions[classes[cls]] += 1
         if predicted[i] == cls:
             correct_predictions[classes[cls]] += 1
 print("latest: ", total, correct, correct/total)
-print("best validation: ", best_total, best_correct, best_correct/best_total)
 
 plt.figure()
-print(all_predictions)
-print(correct_predictions)
+#print(all_predictions)
+#print(correct_predictions)
 plt.bar(list(correct_predictions.keys()), correct_predictions.values())
 plt.title("Class accuracy")
-plt.savefig('class_pred.svg')
+#plt.savefig('class_pred.svg')
 plt.show()

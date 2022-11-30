@@ -118,6 +118,9 @@ def update_net(net):
 
 def check_net(net):
     reduced_count = 0
+    param_count = 0
+    for x in filter(lambda p: p.requires_grad, net.parameters()):
+        param_count += np.prod(x.data.cpu().numpy().shape)
     for name, param in net.named_modules():
         if "alpha1" in list(dir(param)) or "alpha2" in list(dir(param)):
             conv1_size = param.conv1.weight.size()
@@ -131,4 +134,5 @@ def check_net(net):
             # # of params zeroed out
             reduced_count += num_zeros1 * filter1_params
             reduced_count += num_zeros2 * filter2_params
-    print(reduced_count)
+    pruned_param_count = param_count - reduced_count
+    print(f'Original count: {param_count}, After Prune count: {pruned_param_count}, % Reduced: {1-pruned_param_count/param_count}')

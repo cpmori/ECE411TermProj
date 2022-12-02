@@ -78,11 +78,11 @@ class TargetBlock(nn.Module):
                 )
 
     def forward(self, x):
-        Prune = 0
+        Prune = 2
         # in sampling
         # softalpha: p_hat
         # alpha: p
-        if Prune == 1:
+        if Prune == 1: # original
             non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
             non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
             
@@ -106,7 +106,7 @@ class TargetBlock(nn.Module):
             #if (self.alpha1.size()[0] == 16):          # check if parameters are truly zeroed out
                 #print(torch.nonzero(out).size())
             #    print(len(self.alpha1),len(non_masked_alpha1_idx))
-        elif Prune == 2:
+        elif Prune == 2: # proposed
             non_masked_alpha1_idx = torch.nonzero(self.alpha1)[:,0]
             non_masked_alpha2_idx = torch.nonzero(self.alpha2)[:,0]
             

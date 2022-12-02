@@ -21,7 +21,7 @@ def alphaL2(net: nn.Module):
     return torch.sqrt(sumofAlphaSquared)
 
 SAVE_MODEL = True
-saved_path = './saved_models/coarse20_orig0005.pth'
+saved_path = './saved_models/coarse56_orig0005.pth'
 
 transform = transforms.Compose(
     [transforms.RandomHorizontalFlip(),
@@ -39,11 +39,11 @@ print("train data: ", train_size, " valid data: ", valid_size)
 trainset, validset = torch.utils.data.random_split(dataset,[train_size, valid_size])
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=2)
-validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 2)
+validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 4)
 testset = torchvision.datasets.CIFAR10(root='/home/lixin/Classes/ECE411/data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                         shuffle=False, num_workers=2)
+                                         shuffle=False, num_workers=4)
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -52,7 +52,7 @@ classes = ('plane', 'car', 'bird', 'cat',
 Coarse_Epoch = 100
 
 # target model
-net = resnet.resnet20()
+net = resnet.resnet56()
 if torch.cuda.is_available():
     net.cuda()
     print(torch.cuda.get_device_name(0))
@@ -69,7 +69,7 @@ print(optimizer)
 
 
 # train & valid
-best_model = resnet.resnet20()
+best_model = resnet.resnet56()
 best_val = 0
 best_epoch = 0
 iteration = []

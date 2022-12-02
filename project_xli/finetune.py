@@ -26,10 +26,10 @@ if __name__ == '__main__':
                                               shuffle=True, num_workers=4)
     validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 4)
 
-    net = resnet.resnet20().cuda()
+    net = resnet.resnet56().cuda()
     thres_net = tnet.ThresNet().cuda()
-    net.load_state_dict(torch.load('./saved_models/sampled20_noAlphaChange_2_orig0005.pth'))
-    thres_net.load_state_dict(torch.load('./saved_models/thres20_noAlphaChange_2_orig0005.pth'))
+    net.load_state_dict(torch.load('./saved_models/sampled56_modifiedAlpha_orig0005.pth'))
+    thres_net.load_state_dict(torch.load('./saved_models/thres56_modifiedAlpha_orig0005.pth'))
 
 
     pruning.prune_net(net, thres_net)
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, Fine_Epoch)
     
     train_acc = []
-    saved_path = './saved_models/fine20_noAlphaChange_2_orig0005.pth'
+    saved_path = './saved_models/fine56_modifiedAlpha_orig0005.pth'
 
     for epoch in range(Fine_Epoch):
         running_loss = 0

@@ -34,7 +34,7 @@ total = 0
 correct_predictions = {}
 all_predictions = {}
 
-net = resnet.resnet20().cuda()
+#net = resnet.resnet20().cuda()
 # coarse train (change Prune = 0 in resnet.py)
 # 90.75% accuracy
 #net.load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
@@ -50,6 +50,19 @@ net = resnet.resnet20().cuda()
 # loss backward propagation every batch during sampling (Prune = 1)
 # 44.6282% reduction, 87.87% accuracy
 #net.load_state_dict(torch.load('./saved_models/fine20_freqUpdateWithAlpha_orig0005.pth'))
+
+net = resnet.resnet56().cuda()
+# coarse train (change Prune = 0 in resnet.py)
+# 92.31% accuracy
+#net.load_state_dict(torch.load('./saved_models/coarse56_orig0005.pth'))
+
+# paper alpha equation (change Prune = 1 in resnet.py)
+# 42.8446% reduction, 91.62% accuracy
+#net.load_state_dict(torch.load('./saved_models/fine56_orig0005.pth'))
+
+# modified alpha equation (change Prune = 2 in resnet.py)
+# 44.2761% reduction, 91.44% accuracy
+net.load_state_dict(torch.load('./saved_models/fine56_modifiedAlpha_orig0005.pth'))
 
 pruning.check_net(net)
 for cls in classes:

@@ -43,7 +43,7 @@ def changeAlpha(target_net:nn.Module, alpha_net:OrderedDict):
 
 if __name__ == "__main__":
     torch.autograd.set_detect_anomaly(True)
-    log_file = "./log/sampling_noAlphaChange_2_orig0005.log"
+    log_file = "./log/sampling56_modifiedAlpha_orig0005.log"
     logging.basicConfig(filename=log_file, level=logging.INFO)
     
     batch_size = 128
@@ -64,8 +64,8 @@ if __name__ == "__main__":
     validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle = True, num_workers = 4)
     
     
-    target_net = resnet.resnet20().cuda()
-    target_net.load_state_dict(torch.load('./saved_models/coarse20_orig0005.pth'))
+    target_net = resnet.resnet56().cuda()
+    target_net.load_state_dict(torch.load('./saved_models/coarse56_orig0005.pth'))
     thres_net = tnet.ThresNet().cuda()
     #print(type(target_net))
 
@@ -190,8 +190,8 @@ if __name__ == "__main__":
         sample_net_end_time = time.time()
         logging.info(f'Time taken for net {subnet_count}: {sample_net_end_time-sample_net_start_time}')
         #resnet.test(sampled_net)
-    torch.save(target_net.state_dict(),'./saved_models/sampled20_noAlphaChange_2_orig0005.pth')
-    torch.save(thres_net.state_dict(),'./saved_models/thres20_noAlphaChange_2_orig0005.pth')
+    torch.save(target_net.state_dict(),'./saved_models/sampled56_modifiedAlpha_orig0005.pth')
+    torch.save(thres_net.state_dict(),'./saved_models/thres56_modifiedAlpha_orig0005.pth')
     logging.info('END of Sampling')
     sampling_end_time = time.time()
     logging.info(f'Time taken for sampling: {sampling_end_time-sampling_start_time}')
